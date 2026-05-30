@@ -1,0 +1,269 @@
+"use client";
+
+import { useUIStore } from "@/hooks/useUIStore";
+import { useState, useRef } from "react";
+import { submitReport, reviewReport } from "@/app/actions/reports";
+import { Paperclip, X } from "lucide-react";
+
+interface Report {
+  id: number;
+  title: string;
+  description: string;
+  fileName: string;
+  fileData: string;
+  submittedBy: string | null;
+  reviewed: boolean;
+  submittedAt: Date;
+}
+
+export function ReportsView({
+  reports,
+  currentUserEmail,
+  canManage,
+}: {
+  reports: Report[];
+  currentUserEmail: string;
+  canManage: boolean;
+}) {
+  const { addToast } = useUIStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [reportsList, setReportsList] = useState<Report[]>(reports);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [fileData, setFileData] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setFileData(result.split(",")[1]); // Store base64 payload
+      addToast(`File ready: ${file.name}`, "success");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearFile = () => {
+    setFileName("");
+    setFileData("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim()) return addToast("Task Title is required", "error");
+    if (!description.trim()) return addToast("Description is required", "error");
+
+    setLoading(true);
+    const res = await submitReport({
+      title,
+      description,
+      fileName,
+      fileData,
+      submittedBy: currentUserEmail,
+    });
+    setLoading(false);
+
+    if (res.success && res.report) {
+      addToast("Report submitted successfully!", "success");
+      setReportsList((prev) => [res.report as any, ...prev]);
+      setTitle("");
+      setDescription("");
+      clearFile();
+    } else {
+      addToast(res.error || "Failed to submit", "error");
+    }
+  };
+
+  const handleReview = async (id: number) => {
+    const res = await reviewReport(id);
+    if (res.success) {
+      addToast("Report marked as reviewed", "success");
+      setReportsList((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, reviewed: true } : r))
+      );
+    } else {
+      addToast(res.error || "Failed to review", "error");
+    }
+  };
+
+  const downloadFile = (name: string, data: string) => {
+    const link = document.createElement("a");
+    link.href = `data:application/octet-stream;base64,${data}`;
+    link.download = name;
+    link.click();
+  };
+
+  const exportReports = () => {
+    if (!reportsList.length) {
+      addToast("No reports to export", "info");
+      return;
+    }
+    try {
+      const csv = [
+        "ID,Title,Submitted By,Description,File,Reviewed,Date",
+        ...reportsList.map(
+          (r) =>
+            `${r.id},"${r.title}","${r.submittedBy || ""}","${(
+              r.description || ""
+            ).replace(/"/g, "'")}","${r.fileName || ""}",${r.reviewed},${r.submittedAt ? new Date(r.submittedAt).toLocaleDateString("en-IN") : ""
+            }`
+        ),
+      ].join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      a.download = "reports.csv";
+      a.click();
+      addToast("Reports exported!", "success");
+    } catch (e) {
+      addToast("Export failed", "error");
+    }
+  };
+
+  return (
+    <div className="page-stack">
+      <div className="report-form">
+        <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "18px" }}>
+          Submit Report
+        </h3>
+        <div className="field">
+          <label>Task Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What task are you reporting on?"
+          />
+        </div>
+
+        <div className="field">
+          <label>Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe what you worked on..."
+            rows={3}
+          />
+        </div>
+
+        <div className="field">
+          <label>
+            Attach File <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(any type — PDF, image, doc, zip…)</span>
+          </label>
+          <label style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px", background: "var(--surface2)", border: "1.5px dashed var(--border)", borderRadius: "10px", padding: "12px 18px", transition: "border-color .2s" }}>
+            <span style={{ fontSize: "20px" }}>📎</span>
+            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+              {fileName ? "File selected" : "Click to choose file or drop here"}
+            </span>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
+          </label>
+          {fileName && (
+            <div style={{ marginTop: "8px", padding: "8px 12px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", fontSize: "12.5px", color: "var(--green)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>✅</span><span>{fileName}</span>
+              <button onClick={clearFile} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px" }}>✕</button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="btn-sm btn-accent disabled:opacity-70"
+        >
+          {loading ? "Submitting..." : "Submit Report"}
+        </button>
+      </div>
+      <div style={{ height: 20 }} />
+
+      <div className="table-card">
+        <div className="table-card-header">
+          <h3>
+            {canManage ? "All Reports" : "My Reports"}
+          </h3>
+          <button
+            onClick={exportReports}
+            className="btn-sm btn-outline"
+          >
+            ↓ Export CSV
+          </button>
+        </div>
+
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Submitted By</th>
+                <th>Task</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>File</th>
+                {canManage && <th>Status</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {reportsList.length === 0 ? (
+                <tr>
+                  <td colSpan={canManage ? 6 : 5} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
+                    No reports yet
+                  </td>
+                </tr>
+              ) : (
+                reportsList.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <strong>{r.submittedBy || "Unknown"}</strong>
+                      <br />
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{r.submittedBy || ""}</span>
+                    </td>
+                    <td>{r.title}</td>
+                    <td>
+                      {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString("en-IN") : "—"}
+                    </td>
+                    <td style={{ maxWidth: "180px", fontSize: "12.5px", color: "var(--text-muted)" }}>
+                      {r.description || "—"}
+                    </td>
+                    <td>
+                      {r.fileName && r.fileData ? (
+                        <button
+                          onClick={() => downloadFile(r.fileName, r.fileData)}
+                          className="action-btn action-view"
+                        >
+                          📥 {r.fileName}
+                        </button>
+                      ) : r.fileName ? (
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>📄 {r.fileName}</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    {canManage && (
+                      <td>
+                        {r.reviewed ? (
+                          <span className="badge badge-green">
+                            Reviewed
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleReview(r.id)}
+                            className="action-btn action-approve"
+                          >
+                            ✓ Review
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

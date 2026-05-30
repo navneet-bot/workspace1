@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  password    String
+  role        String   @default("intern") // admin | intern | super_admin
+  permissions        String   @default("")       // comma-separated
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  @@map("users")
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @default("")
+  assignedTo  String?  // email of assignee
+  status      String   @default("Pending") // Pending | In Progress | Completed
+  priority    String   @default("Medium")  // High | Medium | Low
+  deadline    String   @default("TBD")
+  project     String   @default("")
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@map("tasks")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String   @default("")
+  status      String   @default("In Progress") // In Progress | Completed | Pending
+  progress    Int      @default(0) // 0-100
+  color       String   @default("#3b82f6")
+  members     String   @default("") // JSON list of emails
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@map("projects")
+}
+
+model Candidate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String?
+  phone       String   @default("")
+  skill       String   @default("")
+  resume      String   @default("")
+  resumeLink  String   @default("")
+  status      String   @default("Pending")
+  state       String   @default("")
+  college     String   @default("")
+  eduDomain   String   @default("")
+  duration    String   @default("")
+  extraData   String   @default("") // JSON: extra CSV columns
+  appliedAt   DateTime @default(now())
+
+  @@map("candidates")
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  email       String?
+  date        String?  // YYYY-MM-DD
+  status      String   @default("Present") // Present | Absent | Leave
+
+  @@map("attendance")
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @default("")
+  taskRef     String   @default("")
+  fileName    String   @default("")
+  fileData    String   @default("")
+  submittedBy String?
+  reviewed    Boolean  @default(false)
+  submittedAt DateTime @default(now())
+
+  @@map("reports")
+}
+
+model Group {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String   @default("")
+  icon        String   @default("📁")
+  members     String   @default("") // JSON list of emails
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@map("groups")
+}
+
+model Meeting {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @default("")
+  date        String?  // YYYY-MM-DD
+  time        String?  // HH:MM
+  meetLink    String   @default("")
+  members     String   @default("[]") // JSON list of emails invited
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@map("meetings")
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  title       String
+  body        String   @default("")
+  icon        String   @default("🔔")
+  targetEmail String   @default("ALL")
+  read        Boolean  @default(false)
+  seenBy      String   @default("[]") // JSON list of emails
+  createdAt   DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model WorkLog {
+  id          Int      @id @default(autoincrement())
+  email       String?
+  name        String   @default("")
+  loginTime   String   @default("")
+  logoutTime  String   @default("")
+  workAssigned String  @default("")
+  workDid     String   @default("")
+  hoursWorked String   @default("")
+  issues      String   @default("")
+  resolved    String   @default("")
+  startedAt   String   @default("")
+  completedAt String   @default("")
+  date        String   @default("") // YYYY-MM-DD
+  createdAt   DateTime @default(now())
+
+  @@map("work_logs")
+}
+
+model GroupMessage {
+  id          Int      @id @default(autoincrement())
+  groupId     Int
+  sender      String?  // email
+  message     String
+  sentAt      DateTime @default(now())
+  readBy      String   @default("[]") // JSON list of user IDs who have read this
+
+  @@map("group_messages")
+}
+
+model ChatMessage {
+  id          Int      @id @default(autoincrement())
+  senderId    Int
+  receiverId  Int      // 0 = broadcast
+  message     String
+  read        Boolean  @default(false)
+  sentAt      DateTime @default(now())
+
+  @@map("chat_messages")
+}
+
+model Config {
+  key         String   @id
+  value       String   @default("")
+
+  @@map("config")
+}
