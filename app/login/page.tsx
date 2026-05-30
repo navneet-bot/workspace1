@@ -20,10 +20,13 @@ function LoginForm() {
 
     try {
       console.log("Submitting credentials");
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      
       const result = await signIn("credentials", {
         redirect: false,
         email,
         password,
+        callbackUrl,
       });
 
       console.log("SignIn Result:", result);
@@ -38,8 +41,8 @@ function LoginForm() {
       if (result?.ok) {
         const session = await getSession();
         console.log("Session:", session);
-        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-        router.push(callbackUrl);
+        router.refresh();
+        router.push("/dashboard");
       }
     } catch (error) {
       console.error(error);
