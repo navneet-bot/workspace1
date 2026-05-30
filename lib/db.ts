@@ -18,8 +18,8 @@ if (!process.env.NEXTAUTH_SECRET) {
 
 const connectionString = process.env.DATABASE_URL
 
-const pool = new Pool({ connectionString })
-const adapter = new PrismaNeon(pool as any)
+const poolConfig = { connectionString }
+const adapter = new PrismaNeon(poolConfig)
 const prisma = new PrismaClient({ adapter })
 
 export default prisma

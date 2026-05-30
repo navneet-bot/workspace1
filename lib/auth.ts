@@ -17,26 +17,41 @@ export const authOptions: NextAuthOptions = {
 
         try {
           if (!credentials?.email || !credentials?.password) {
-            throw new Error("Invalid credentials");
+            console.error("AUTH FAILED: Missing credentials");
+            return null;
           }
 
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           });
 
-          if (!user || !user.password) {
-            throw new Error("Invalid credentials");
+          console.log("User found:", !!user);
+
+          if (!user) {
+            console.error("AUTH FAILED: User not found");
+            return null;
           }
 
-        // Compare password using bcrypt, with a plaintext fallback for legacy records.
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        
-        if (!isCorrectPassword && credentials.password !== user.password) {
-            throw new Error("Invalid credentials");
-        }
+          console.log("User email:", user.email);
+
+          if (!user.password) {
+            console.error("AUTH FAILED: User has no password set");
+            return null;
+          }
+
+          // Compare password using bcrypt, with a plaintext fallback for legacy records.
+          const isCorrectPassword = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+          
+          const passwordValid = isCorrectPassword || credentials.password === user.password;
+          console.log("Password valid:", passwordValid);
+
+          if (!passwordValid) {
+            console.error("AUTH FAILED: Invalid password");
+            return null;
+          }
 
           return {
             id: user.id.toString(),
