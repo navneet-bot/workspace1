@@ -18,22 +18,12 @@ export default async function ChatPage({
   const resolvedParams = await searchParams;
   const select = resolvedParams?.select || null;
 
-  let currentUser = await prisma.user.findUnique({
+  const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email }
   }).catch(() => null);
 
   if (!currentUser) {
-    currentUser = {
-      id: parseInt((session.user as any).id || "0"),
-      email: session.user.email,
-      name: session.user.name || "User",
-      role: (session.user as any).role || "intern",
-      permissions: (session.user as any).permissions || "",
-      password: "",
-      mustChangePassword: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as any;
+    redirect("/login");
   }
 
   const users = await prisma.user.findMany({

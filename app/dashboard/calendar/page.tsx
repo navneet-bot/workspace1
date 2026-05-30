@@ -11,23 +11,9 @@ export default async function CalendarPage() {
     redirect("/login");
   }
 
-  let currentUser = await prisma.user.findUnique({
+  const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email }
   }).catch(() => null);
-
-  if (!currentUser) {
-    currentUser = {
-      id: parseInt((session.user as any).id || "0"),
-      email: session.user.email,
-      name: session.user.name || "User",
-      role: (session.user as any).role || "intern",
-      permissions: (session.user as any).permissions || "",
-      password: "",
-      mustChangePassword: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as any;
-  }
 
   if (!currentUser) {
     redirect("/login");
