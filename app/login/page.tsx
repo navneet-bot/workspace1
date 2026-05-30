@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -14,22 +14,37 @@ function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Login button clicked");
     setError("");
     setIsLoading(true);
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      console.log("Submitting credentials");
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
 
-    setIsLoading(false);
+      console.log("signIn response:", result);
 
-    if (res?.error) {
-      setError("Invalid credentials. Please try again.");
-    } else {
-      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-      router.push(callbackUrl);
+      if (result?.error) {
+        console.error(result.error);
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+
+      if (result?.ok) {
+        const session = await getSession();
+        console.log("Session:", session);
+        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+        router.push(callbackUrl);
+      }
+    } catch (error) {
+      console.error(error);
+      setError("Unexpected error occurred");
+      setIsLoading(false);
     }
   };
 
