@@ -42,7 +42,7 @@ function LoginForm() {
         const session = await getSession();
         console.log("Session:", session);
         router.refresh();
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }
     } catch (error) {
       console.error(error);
