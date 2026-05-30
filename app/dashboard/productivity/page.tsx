@@ -22,7 +22,7 @@ export default async function ProductivityPage() {
   const users = await prisma.user.findMany({
     where: { role: "intern" },
     select: { email: true, name: true, role: true }
-  });
+  }).catch(() => []);
 
   if (!users.length) {
     return (

@@ -17,7 +17,7 @@ export default async function ReportsPage() {
   const reports = await prisma.report.findMany({
     where: canManage ? undefined : { submittedBy: session.user.email },
     orderBy: { submittedAt: "desc" }
-  });
+  }).catch(() => []);
 
   return (
     <div className="page-stack">

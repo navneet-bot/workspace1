@@ -11,18 +11,28 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const currentUser = await prisma.user.findUnique({
+  let currentUser = await prisma.user.findUnique({
     where: { email: session.user.email }
-  });
+  }).catch(() => null);
 
   if (!currentUser) {
-    redirect("/login");
+    currentUser = {
+      id: parseInt((session.user as any).id || "0"),
+      email: session.user.email,
+      name: session.user.name || "User",
+      role: (session.user as any).role || "intern",
+      permissions: (session.user as any).permissions || "",
+      password: "",
+      mustChangePassword: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
   }
 
   // Get candidate info for interns
   let candidateInfo = null;
   if (currentUser.role === "intern") {
-    const candidate = await prisma.candidate.findFirst({ where: { email: currentUser.email } });
+    const candidate = await prisma.candidate.findFirst({ where: { email: currentUser.email } }).catch(() => null);
     if (candidate) {
       candidateInfo = {
         phone: candidate.phone || "",
@@ -38,7 +48,7 @@ export default async function SettingsPage() {
   // Get Email config for admins
   const config = await prisma.config.findMany({
     where: { key: "resend_key" }
-  });
+  }).catch(() => []);
   
   const emailConfig = {
     resendKey: config.find(c => c.key === "resend_key")?.value || ""

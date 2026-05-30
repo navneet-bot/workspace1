@@ -18,11 +18,16 @@ export default async function DashboardLayout({
   }
 
   // FORCE PASSWORD CHANGE CHECK
-  const prisma = (await import("@/lib/db")).default;
-  const dbUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { mustChangePassword: true }
-  });
+  let dbUser = null;
+  try {
+    const prisma = (await import("@/lib/db")).default;
+    dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { mustChangePassword: true }
+    });
+  } catch (error) {
+    console.error("Database connection error in layout:", error);
+  }
 
   if (dbUser?.mustChangePassword) {
     redirect("/force-password-change");

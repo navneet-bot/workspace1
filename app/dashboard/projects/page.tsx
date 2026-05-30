@@ -20,7 +20,7 @@ export default async function ProjectsPage() {
 
   const projects = await prisma.project.findMany({
     orderBy: { createdAt: "desc" }
-  });
+  }).catch(() => []);
 
   return (
     <div className="page-stack">

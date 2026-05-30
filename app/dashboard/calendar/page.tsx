@@ -11,12 +11,22 @@ export default async function CalendarPage() {
     redirect("/login");
   }
 
-  const currentUser = await prisma.user.findUnique({
+  let currentUser = await prisma.user.findUnique({
     where: { email: session.user.email }
-  });
+  }).catch(() => null);
 
   if (!currentUser) {
-    redirect("/login");
+    currentUser = {
+      id: parseInt((session.user as any).id || "0"),
+      email: session.user.email,
+      name: session.user.name || "User",
+      role: (session.user as any).role || "intern",
+      permissions: (session.user as any).permissions || "",
+      password: "",
+      mustChangePassword: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
   }
 
   const role = currentUser.role;
@@ -63,7 +73,7 @@ export default async function CalendarPage() {
     });
   });
 
-  const users = await prisma.user.findMany({ select: { email: true, name: true } });
+  const users = await prisma.user.findMany({ select: { email: true, name: true } }).catch(() => []);
   
   attendance.forEach(a => {
     if (a.status === "Leave" && a.date) {

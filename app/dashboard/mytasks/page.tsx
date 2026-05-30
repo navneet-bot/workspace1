@@ -13,7 +13,7 @@ export default async function MyTasksPage() {
   const tasks = await prisma.task.findMany({
     where: { assignedTo: session.user.email },
     orderBy: { createdAt: "desc" }
-  });
+  }).catch(() => []);
 
   return (
     <div className="page-stack">

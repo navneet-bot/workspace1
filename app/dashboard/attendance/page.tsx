@@ -17,9 +17,9 @@ export default async function AttendancePage() {
   const users = await prisma.user.findMany({
     select: { name: true, email: true, role: true },
     orderBy: { name: "asc" }
-  });
+  }).catch(() => []);
 
-  const attendance = await prisma.attendance.findMany();
+  const attendance = await prisma.attendance.findMany().catch(() => []);
 
   return (
     <div className="page-stack">

@@ -56,19 +56,19 @@ export default async function DashboardPage() {
       prisma.task.findMany({
         where: { assignedTo: userEmail },
         orderBy: { createdAt: "desc" },
-      }),
+      }).catch(() => []),
       prisma.attendance.findMany({
         where: { email: userEmail },
-      }),
+      }).catch(() => []),
       prisma.group.findMany({
         orderBy: { createdAt: "desc" },
-      }),
+      }).catch(() => []),
       prisma.notification.findMany({
         where: {
           OR: [{ targetEmail: "ALL" }, { targetEmail: userEmail }],
         },
         orderBy: { createdAt: "desc" },
-      }),
+      }).catch(() => []),
     ]);
 
     const pending = tasks.filter((task) => task.status === "Pending").length;
@@ -374,12 +374,12 @@ export default async function DashboardPage() {
   }
 
   const [users, projects, attendance, tasks] = await Promise.all([
-    prisma.user.findMany({ where: { role: { not: "admin" } } }),
-    prisma.project.findMany(),
+    prisma.user.findMany({ where: { role: { not: "admin" } } }).catch(() => []),
+    prisma.project.findMany().catch(() => []),
     prisma.attendance.findMany({
       where: { date: new Date().toISOString().split("T")[0], status: "Present" },
-    }),
-    prisma.task.findMany({ orderBy: { createdAt: "desc" } }),
+    }).catch(() => []),
+    prisma.task.findMany({ orderBy: { createdAt: "desc" } }).catch(() => []),
   ]);
 
   const totalInterns = users.filter((user) => user.role === "intern").length;

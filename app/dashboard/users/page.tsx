@@ -21,7 +21,7 @@ export default async function UsersPage() {
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "asc" }
-  });
+  }).catch(() => []);
 
   return (
     <div className="page-stack">

@@ -11,12 +11,22 @@ export default async function NotificationsPage() {
     redirect("/login");
   }
 
-  const currentUser = await prisma.user.findUnique({
+  let currentUser = await prisma.user.findUnique({
     where: { email: session.user.email }
-  });
+  }).catch(() => null);
 
   if (!currentUser) {
-    redirect("/login");
+    currentUser = {
+      id: parseInt((session.user as any).id || "0"),
+      email: session.user.email,
+      name: session.user.name || "User",
+      role: (session.user as any).role || "intern",
+      permissions: (session.user as any).permissions || "",
+      password: "",
+      mustChangePassword: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
   }
 
   // Admins and super admins with send_notifications permission can send
@@ -30,12 +40,12 @@ export default async function NotificationsPage() {
       ]
     },
     orderBy: { createdAt: "desc" }
-  });
+  }).catch(() => []);
 
   const users = await prisma.user.findMany({
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" }
-  });
+  }).catch(() => []);
 
   // Calculate local read state (because read/seenBy is technically shared in this simple DB model)
   // In the legacy system, a notification is marked read globally when ANYONE reads it, or locally based on seenBy.

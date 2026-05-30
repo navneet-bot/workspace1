@@ -13,7 +13,7 @@ export default async function CandidatesPage() {
 
   const candidates = await prisma.candidate.findMany({
     orderBy: { appliedAt: "desc" }
-  });
+  }).catch(() => []);
 
   return (
     <div className="page-stack">
