@@ -45,8 +45,12 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
             permissions: user.permissions || ""
           };
-        } catch (error) {
+        } catch (error: any) {
           console.error("Authorize failed:", error);
+          // Prevent leaking internal database errors to the frontend
+          if (error?.message?.includes("No database host") || error?.message?.includes("DATABASE_URL")) {
+             throw new Error("Authentication service is temporarily unavailable. Please check the backend configuration.");
+          }
           throw error;
         }
       }
