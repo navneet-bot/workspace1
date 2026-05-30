@@ -29,6 +29,10 @@ export default async function CalendarPage() {
     } as any;
   }
 
+  if (!currentUser) {
+    redirect("/login");
+  }
+
   const role = currentUser.role;
   const isAdmin = role === "admin" || role === "super_admin";
 
