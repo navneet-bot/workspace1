@@ -26,10 +26,10 @@ function LoginForm() {
         password,
       });
 
-      console.log("signIn response:", result);
+      console.log("SignIn Result:", result);
 
       if (result?.error) {
-        console.error(result.error);
+        console.error("Login Error:", result.error);
         setError(result.error);
         setIsLoading(false);
         return;
