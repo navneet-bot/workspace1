@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { DashboardCharts } from "@/components/features/dashboard/DashboardCharts";
+import { DashboardHeaderActions } from "@/components/features/dashboard/DashboardHeaderActions";
 import Link from "next/link";
 
 const COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4"];
@@ -46,9 +47,9 @@ function roleLabel(role: string) {
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const userEmail = session?.user?.email;
-  const userRole = ((session?.user as any)?.role || "intern") as string;
+  const userRole = (session?.user as { role?: string })?.role || "intern";
   const currentUserName = session?.user?.name || "Intern";
-  const permissions = ((session?.user as any)?.permissions || "") as string;
+  const permissions = (session?.user as { permissions?: string })?.permissions || "";
   const hasSuperAdminAccess = userRole === "super_admin" && permissions.trim() !== "";
   const showInternDashboard = userRole === "intern" || (userRole === "super_admin" && !hasSuperAdminAccess);
 
@@ -185,23 +186,11 @@ export default async function DashboardPage() {
                 Today
               </div>
             </div>
-            {todayStatus === "Not Marked" ? (
-              <button className="btn-sm btn-accent">✓ Mark Present</button>
-            ) : null}
-            <button
-              style={{
-                background: "rgba(239,68,68,0.15)",
-                color: "#ef4444",
-                border: "1px solid rgba(239,68,68,0.35)",
-                borderRadius: "9px",
-                padding: "8px 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              🚪 Logout
-            </button>
+            <DashboardHeaderActions
+              todayStatus={todayStatus}
+              userEmail={userEmail}
+              userRole={userRole}
+            />
           </div>
         </div>
 
