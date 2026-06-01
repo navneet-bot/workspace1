@@ -734,8 +734,8 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
       </div>
 
       {/* Candidates Table (Full Columns) */}
-      <div style={{ overflowX: "auto" }}>
-        <table>
+      <div className="table-scroll">
+        <table style={{ minWidth: "1200px" }}>
           <thead>
             <tr>
               <th style={{ width: 30 }}></th>
