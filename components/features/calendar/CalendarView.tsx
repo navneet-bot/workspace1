@@ -107,12 +107,12 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
           >
             {d}
           </div>
-          <div className="flex gap-[2px] flex-wrap mt-[2px]">{dots}</div>
-          <div className="mt-[2px] flex flex-col gap-0.5 overflow-hidden">
+          <div className="cal-event-dots flex gap-[2px] flex-wrap mt-[2px]">{dots}</div>
+          <div className="cal-event-pills mt-[2px] flex flex-col gap-0.5 overflow-hidden">
             {dayEvents.map((e, idx) => (
               <div
                 key={idx}
-                className="truncate rounded-[4px] px-1 py-0.5 text-[9.5px] font-medium"
+                className="cal-event-pill truncate rounded-[4px] px-1 py-0.5 text-[9.5px] font-medium"
                 style={{ backgroundColor: `${e.color}22`, color: e.color, maxWidth: "100%" }}
               >
                 {e.label}
@@ -203,23 +203,32 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
                       month: "short",
                     })}
                   </div>
-                  {evts.map((e, idx) => (
-                    <div
-                      key={idx}
-                      className="mb-[3px] flex items-center gap-2 rounded-[7px] border-l-[3px] px-2 py-1.5 last:mb-0"
-                      style={{
-                        backgroundColor: `${e.color}10`,
-                        borderLeftColor: e.color,
-                      }}
-                    >
-                      <div
-                        className="text-[12px] flex-1 truncate font-medium"
-                        style={{ color: e.color }}
-                      >
-                        {e.label}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex flex-col gap-1.5">
+                    {evts.map((e, idx) => {
+                      const emoji = e.label.slice(0, 2);
+                      const text = e.label.slice(2).trim();
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center rounded-r-[6px] border-l-[3px] pl-1 pr-2 py-1.5"
+                          style={{
+                            backgroundColor: `${e.color}10`,
+                            borderLeftColor: e.color,
+                          }}
+                        >
+                          <span className="w-5 flex justify-center shrink-0 text-[12.5px] select-none">
+                            {emoji}
+                          </span>
+                          <span
+                            className="text-[12px] flex-1 truncate font-medium ml-1"
+                            style={{ color: e.color }}
+                          >
+                            {text}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })

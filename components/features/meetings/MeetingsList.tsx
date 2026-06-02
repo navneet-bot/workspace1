@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { createMeeting, deleteMeeting } from "@/app/actions/meetings";
 import { AnimatePresence, motion } from "framer-motion";
-import { Calendar as CalendarIcon, Clock, Trash2, X } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Trash2, Video, X } from "lucide-react";
 
 interface User {
   id: number;
@@ -171,24 +171,25 @@ export function MeetingsList({
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 {m.meetLink && (
                   <a
-                    className="meet-link font-syne text-[12.5px]"
+                    className="meet-link font-syne text-[12.5px] flex items-center gap-1.5"
                     href={m.meetLink.startsWith("http") ? m.meetLink : `https://${m.meetLink}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    🎥 Join
+                    <Video size={14} className="stroke-[2.5]" />
+                    <span>Join</span>
                   </a>
                 )}
                 {canManage && (
                   <button
                     onClick={() => handleDelete(m.id)}
                     className="action-btn action-reject flex items-center justify-center"
-                    style={{ padding: "4px 8px" }}
+                    style={{ width: "34px", height: "34px", padding: 0, borderRadius: "8px" }}
                   >
-                    🗑
+                    <Trash2 size={14} className="stroke-[2.5]" />
                   </button>
                 )}
               </div>

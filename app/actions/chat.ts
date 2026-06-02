@@ -66,8 +66,31 @@ export async function sendChatMessage(senderId: number, receiverId: number, mess
 
 export async function deleteChatMessage(id: number) {
   try {
-    await prisma.chatMessage.delete({ where: { id } });
+    const msg = await prisma.chatMessage.findUnique({ where: { id } });
+    if (msg) {
+      if (msg.receiverId !== 0) {
+        const sender = await prisma.user.findUnique({ where: { id: msg.senderId } });
+        const receiver = await prisma.user.findUnique({ where: { id: msg.receiverId } });
+        if (sender && receiver) {
+          let preview = msg.message;
+          if (msg.message.startsWith("[img:")) preview = "📷 Image attachment";
+          else if (msg.message.startsWith("[file:")) preview = "📄 File attachment";
+          else if (msg.message.length > 80) preview = msg.message.slice(0, 80) + "...";
+
+          await prisma.notification.deleteMany({
+            where: {
+              title: `💬 New message from ${sender.name}`,
+              body: preview,
+              icon: "💬",
+              targetEmail: receiver.email
+            }
+          });
+        }
+      }
+      await prisma.chatMessage.delete({ where: { id } });
+    }
     revalidatePath("/dashboard/chat");
+    revalidatePath("/dashboard/notifications");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -138,8 +161,31 @@ export async function sendGroupMessage(groupId: number, senderEmail: string, mes
 
 export async function deleteGroupMessage(id: number) {
   try {
-    await prisma.groupMessage.delete({ where: { id } });
+    const msg = await prisma.groupMessage.findUnique({ where: { id } });
+    if (msg) {
+      const senderUser = msg.sender 
+        ? await prisma.user.findFirst({ where: { email: msg.sender } })
+        : null;
+      const group = await prisma.group.findUnique({ where: { id: msg.groupId } });
+      
+      if (group && senderUser) {
+        let preview = msg.message;
+        if (msg.message.startsWith("[img:")) preview = "📷 Image attachment";
+        else if (msg.message.startsWith("[file:")) preview = "📄 File attachment";
+        else if (msg.message.length > 80) preview = msg.message.slice(0, 80) + "...";
+
+        await prisma.notification.deleteMany({
+          where: {
+            title: `💬 ${senderUser.name} in ${group.name}`,
+            body: preview,
+            icon: "💬"
+          }
+        });
+      }
+      await prisma.groupMessage.delete({ where: { id } });
+    }
     revalidatePath("/dashboard/chat");
+    revalidatePath("/dashboard/notifications");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -252,6 +298,27 @@ export const markConversationAsRead = markMessagesAsRead;
 
 export async function deleteConversation(userId1: number, userId2: number) {
   try {
+    const user1 = await prisma.user.findUnique({ where: { id: userId1 } });
+    const user2 = await prisma.user.findUnique({ where: { id: userId2 } });
+    if (user1 && user2) {
+      await prisma.notification.deleteMany({
+        where: {
+          OR: [
+            {
+              title: `💬 New message from ${user1.name}`,
+              targetEmail: user2.email,
+              icon: "💬"
+            },
+            {
+              title: `💬 New message from ${user2.name}`,
+              targetEmail: user1.email,
+              icon: "💬"
+            }
+          ]
+        }
+      });
+    }
+
     await prisma.chatMessage.deleteMany({
       where: {
         OR: [
@@ -261,6 +328,7 @@ export async function deleteConversation(userId1: number, userId2: number) {
       }
     });
     revalidatePath("/dashboard/chat");
+    revalidatePath("/dashboard/notifications");
     return { success: true };
   } catch (error: any) {
     console.error("deleteConversation error", error);

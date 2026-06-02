@@ -93,7 +93,7 @@ export function WorkLogLogoutModal() {
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="modal w-full max-w-[500px]"
+            className="modal modal-scrollable w-full max-w-[500px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
@@ -110,83 +110,85 @@ export function WorkLogLogoutModal() {
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">
-              <div className="field !m-0">
-                <label>Work Assigned</label>
-                <textarea
-                  value={workAssigned}
-                  onChange={(e) => setWorkAssigned(e.target.value)}
-                  placeholder="What work was assigned to you today?"
-                  rows={2}
-                  style={{ resize: "vertical", borderRadius: "9px" }}
-                />
-              </div>
-
-              <div className="field !m-0">
-                <label>Work Did</label>
-                <textarea
-                  value={workDid}
-                  onChange={(e) => setWorkDid(e.target.value)}
-                  placeholder="What did you actually complete?"
-                  rows={2}
-                  style={{ resize: "vertical", borderRadius: "9px" }}
-                />
-              </div>
-
-              <div className="form-row">
+              <div className="form-body">
                 <div className="field !m-0">
-                  <label>Work Started At</label>
+                  <label>Work Assigned</label>
+                  <textarea
+                    value={workAssigned}
+                    onChange={(e) => setWorkAssigned(e.target.value)}
+                    placeholder="What work was assigned to you today?"
+                    rows={2}
+                    style={{ resize: "vertical", borderRadius: "9px" }}
+                  />
+                </div>
+
+                <div className="field !m-0">
+                  <label>Work Did</label>
+                  <textarea
+                    value={workDid}
+                    onChange={(e) => setWorkDid(e.target.value)}
+                    placeholder="What did you actually complete?"
+                    rows={2}
+                    style={{ resize: "vertical", borderRadius: "9px" }}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="field !m-0">
+                    <label>Work Started At</label>
+                    <input
+                      type="time"
+                      value={startedAt}
+                      onChange={(e) => setStartedAt(e.target.value)}
+                      style={{ borderRadius: "9px" }}
+                    />
+                  </div>
+                  <div className="field !m-0">
+                    <label>Completed At</label>
+                    <input
+                      type="time"
+                      value={completedAt}
+                      onChange={(e) => setCompletedAt(e.target.value)}
+                      style={{ borderRadius: "9px" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="field !m-0">
+                  <label>No. of Hours Worked</label>
                   <input
-                    type="time"
-                    value={startedAt}
-                    onChange={(e) => setStartedAt(e.target.value)}
+                    type="number"
+                    min="0"
+                    max="24"
+                    step="0.5"
+                    value={hoursWorked}
+                    onChange={(e) => setHoursWorked(e.target.value)}
+                    placeholder="e.g. 8"
                     style={{ borderRadius: "9px" }}
                   />
                 </div>
+
                 <div className="field !m-0">
-                  <label>Completed At</label>
-                  <input
-                    type="time"
-                    value={completedAt}
-                    onChange={(e) => setCompletedAt(e.target.value)}
-                    style={{ borderRadius: "9px" }}
+                  <label>Issues Faced</label>
+                  <textarea
+                    value={issues}
+                    onChange={(e) => setIssues(e.target.value)}
+                    placeholder="Any blockers or problems?"
+                    rows={2}
+                    style={{ resize: "vertical", borderRadius: "9px" }}
                   />
                 </div>
-              </div>
 
-              <div className="field !m-0">
-                <label>No. of Hours Worked</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="24"
-                  step="0.5"
-                  value={hoursWorked}
-                  onChange={(e) => setHoursWorked(e.target.value)}
-                  placeholder="e.g. 8"
-                  style={{ borderRadius: "9px" }}
-                />
-              </div>
-
-              <div className="field !m-0">
-                <label>Issues Faced</label>
-                <textarea
-                  value={issues}
-                  onChange={(e) => setIssues(e.target.value)}
-                  placeholder="Any blockers or problems?"
-                  rows={2}
-                  style={{ resize: "vertical", borderRadius: "9px" }}
-                />
-              </div>
-
-              <div className="field !m-0">
-                <label>Resolved Issues</label>
-                <textarea
-                  value={resolved}
-                  onChange={(e) => setResolved(e.target.value)}
-                  placeholder="Issues you managed to resolve?"
-                  rows={2}
-                  style={{ resize: "vertical", borderRadius: "9px" }}
-                />
+                <div className="field !m-0">
+                  <label>Resolved Issues</label>
+                  <textarea
+                    value={resolved}
+                    onChange={(e) => setResolved(e.target.value)}
+                    placeholder="Issues you managed to resolve?"
+                    rows={2}
+                    style={{ resize: "vertical", borderRadius: "9px" }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>

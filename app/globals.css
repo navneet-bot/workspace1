@@ -393,6 +393,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 .cal-day.today .cal-date{color:var(--accent)}
 .cal-event{font-size:10px;background:var(--blue);color:#fff;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-event.task{background:var(--accent);color:#000}
+.cal-event-dots{display:none!important}
 .cal-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .cal-month{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
 .cal-nav{display:flex;gap:8px}
@@ -505,7 +506,32 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 .mobile-menu-btn { display:none!important; }
 .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1999}
 .mobile-overlay.visible{display:block}
-@media(max-width:900px){
+
+/* General Scrollable Modal Utility */
+.modal-scrollable {
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.modal-scrollable .modal-form {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.modal-scrollable .form-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+  padding-right: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+}
+
+@media(max-width:1024px){
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .charts-row{grid-template-columns:1fr}
   .groups-grid{grid-template-columns:1fr 1fr}
@@ -515,17 +541,63 @@ tr:hover td{background:rgba(255,255,255,0.02)}
   .sidebar.mobile-open{left:0}
   .mobile-menu-btn{display:flex!important}
 }
-@media(max-width:680px){
+@media(max-width:767px){
   .stats-grid{grid-template-columns:1fr 1fr}
   .groups-grid{grid-template-columns:1fr}
-  .chat-layout{grid-template-columns:1fr}
-  .chat-sidebar{display:none}
-}
-@media(max-width:640px){
+  .chat-layout{grid-template-columns:1fr !important}
+  
+  /* Chat Mobile Responsive Hiding Rules */
+  .chat-sidebar {
+    display: flex !important;
+    width: 100% !important;
+  }
+  .chat-area {
+    display: none !important;
+  }
+  .chat-layout.has-selected-contact .chat-sidebar {
+    display: none !important;
+  }
+  .chat-layout.has-selected-contact .chat-area {
+    display: flex !important;
+    width: 100% !important;
+  }
+  .cal-event-pills {
+    display: none !important;
+  }
+  .cal-event-dots {
+    display: flex !important;
+  }
+  .cal-day {
+    min-height: 52px !important;
+    padding: 4px !important;
+  }
+
+  /* Modal Shell Padding on Mobile */
+  .modal-shell {
+    padding: 10px !important;
+  }
+  .modal, .modal-plain {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  /* Form row collapse on Mobile */
+  .field-row, .form-row, .settings-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Touch Targets for Mobile (Min Height 44px) */
+  .field-input, .field-select, .field-textarea, .btn-sm, .action-pill, .icon-btn, .chat-input, .send-btn, .filter-select, .search-input, .table-search, .table-filter {
+    min-height: 44px !important;
+  }
+
   .surface-header{padding:14px 16px}
   .surface-body{padding:16px}
   .surface-body-tight{padding:14px 16px}
-  .field-row,.settings-grid{grid-template-columns:1fr}
   .settings-tabs{width:100%}
   .settings-tab{flex:1;padding-left:12px;padding-right:12px}
   .settings-card-body,.table-preview{padding:16px}
@@ -538,7 +610,25 @@ tr:hover td{background:rgba(255,255,255,0.02)}
   .toolbar-row{align-items:stretch}
   .toolbar-actions{width:100%}
   .toolbar-actions > *{flex:1}
+
+  /* Responsive Typography */
+  h1 {
+    font-size: 1.5rem !important; /* ~24px */
+  }
+  h2 {
+    font-size: 1.25rem !important; /* ~20px */
+  }
+  .page-title h2 {
+    font-size: 18px !important;
+  }
+  body, p, td, th, input, select, textarea {
+    font-size: 13px !important;
+  }
+  .surface-title {
+    font-size: 13px !important;
+  }
 }
+
 
 /* ── CSV IMPORT COLUMN MAPPING MODAL ── */
 .csv-mapping-grid {
@@ -698,3 +788,140 @@ tr:hover td{background:rgba(255,255,255,0.02)}
   box-shadow: none !important;
   appearance: checkbox !important;
 }
+
+/* ── ROLE PERMISSIONS MODAL REDESIGN ── */
+.permissions-modal {
+  width: 100% !important;
+  max-width: 720px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 90vh !important;
+  overflow: hidden !important;
+  padding: 0 !important; /* Keep header/footer pinned to edges */
+}
+
+.permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 14px 20px;
+}
+
+@media (max-width: 767px) {
+  .permissions-grid {
+    grid-template-columns: 1fr;
+    padding: 12px 14px !important;
+  }
+}
+
+.permission-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.permission-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.permission-item.selected {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+.permission-item-checkbox {
+  width: 18px !important;
+  height: 18px !important;
+  margin-top: 2px !important;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent) !important;
+  appearance: checkbox !important;
+  display: block !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.permission-item-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.permission-item-desc {
+  font-size: 12px;
+  color: var(--text-soft);
+  opacity: 0.7;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.permissions-modal-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.permissions-modal-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  color: var(--text);
+}
+
+.permissions-modal-header p {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.permissions-quick-select {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.permissions-quick-select .action-btn {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+}
+
+.permissions-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.permissions-modal .btn-large {
+  height: 36px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  border-radius: 8px !important;
+}
+

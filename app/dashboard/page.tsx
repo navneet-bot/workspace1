@@ -433,45 +433,47 @@ export default async function DashboardPage() {
           <h3>Recent Tasks</h3>
           <button className="btn-sm btn-accent">+ New Task</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Assigned To</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Deadline</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.slice(0, 5).length ? (
-              tasks.slice(0, 5).map((task) => {
-                const assignee = users.find((user) => user.email === task.assignedTo);
-                return (
-                  <tr key={task.id}>
-                    <td>
-                      <strong>{task.title}</strong>
-                      <br />
-                      <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
-                        {task.project || ""}
-                      </span>
-                    </td>
-                    <td>{assignee?.name || task.assignedTo || "—"}</td>
-                    <td>{prioritySpan(task.priority)}</td>
-                    <td>{statusBadge(task.status)}</td>
-                    <td>{task.deadline || "TBD"}</td>
-                  </tr>
-                );
-              })
-            ) : (
+        <div className="table-scroll">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
-                  No tasks yet
-                </td>
+                <th>Task</th>
+                <th>Assigned To</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Deadline</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {tasks.slice(0, 5).length ? (
+                tasks.slice(0, 5).map((task) => {
+                  const assignee = users.find((user) => user.email === task.assignedTo);
+                  return (
+                    <tr key={task.id}>
+                      <td>
+                        <strong>{task.title}</strong>
+                        <br />
+                        <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
+                          {task.project || ""}
+                        </span>
+                      </td>
+                      <td>{assignee?.name || task.assignedTo || "—"}</td>
+                      <td>{prioritySpan(task.priority)}</td>
+                      <td>{statusBadge(task.status)}</td>
+                      <td>{task.deadline || "TBD"}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
+                    No tasks yet
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

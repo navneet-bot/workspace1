@@ -4,6 +4,7 @@ import { useUIStore } from "@/hooks/useUIStore";
 import { useState } from "react";
 import { createProject, updateProject, deleteProject } from "@/app/actions/projects";
 import { AnimatePresence, motion } from "framer-motion";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface Project {
   id: number;
@@ -217,15 +218,17 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
                             <>
                               <button 
                                 onClick={() => openEdit(p)}
-                                className="action-btn action-edit"
+                                className="action-btn action-edit flex items-center gap-1"
                               >
-                                ✏️ Edit
+                                <Pencil size={12} className="stroke-[2.5]" />
+                                <span>Edit</span>
                               </button>
                               <button 
                                 onClick={() => handleDelete(p.id)}
-                                className="action-btn action-reject"
+                                className="action-btn action-reject flex items-center justify-center"
+                                style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
                               >
-                                🗑
+                                <Trash2 size={12} className="stroke-[2.5]" />
                               </button>
                             </>
                           )}

@@ -65,7 +65,7 @@ export function TaskModal() {
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="modal"
+            className="modal modal-scrollable"
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
               <h3 style={{ margin: 0 }}>Create New Task</h3>
@@ -79,78 +79,80 @@ export function TaskModal() {
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">
-              <div className="field">
-                <label>Task Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Build Login Page"
-                />
-              </div>
-
-              <div className="form-row">
+              <div className="form-body">
                 <div className="field">
-                  <label>Assign To</label>
-                  <select
-                    value={assignedTo}
-                    onChange={(e) => setAssignedTo(e.target.value)}
-                  >
-                    <option value="">-- Unassigned --</option>
-                    {users.map((u) => (
-                      <option key={u.email} value={u.email}>
-                        {u.name} ({u.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Priority</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                  >
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="field">
-                  <label>Deadline</label>
+                  <label>Task Title</label>
                   <input
-                    type="date"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Build Login Page"
                   />
                 </div>
-                <div className="field">
-                  <label>Project</label>
-                  <select
-                    value={project}
-                    onChange={(e) => setProject(e.target.value)}
-                  >
-                    <option value="">-- Select Project --</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.name}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              <div className="field">
-                <label>Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Task details..."
-                  rows={2}
-                  style={{ resize: "vertical" }}
-                />
+                <div className="form-row">
+                  <div className="field">
+                    <label>Assign To</label>
+                    <select
+                      value={assignedTo}
+                      onChange={(e) => setAssignedTo(e.target.value)}
+                    >
+                      <option value="">-- Unassigned --</option>
+                      {users.map((u) => (
+                        <option key={u.email} value={u.email}>
+                          {u.name} ({u.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Priority</label>
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                    >
+                      <option value="High">High</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="field">
+                    <label>Deadline</label>
+                    <input
+                      type="date"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Project</label>
+                    <select
+                      value={project}
+                      onChange={(e) => setProject(e.target.value)}
+                    >
+                      <option value="">-- Select Project --</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.name}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Task details..."
+                    rows={2}
+                    style={{ resize: "vertical" }}
+                  />
+                </div>
               </div>
 
               <div className="modal-footer">

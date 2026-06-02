@@ -13,7 +13,7 @@ import {
   deleteConversation
 } from "@/app/actions/chat";
 import { deleteGroup, renameGroup } from "@/app/actions/groups";
-import { Search, Paperclip, Send, MessageSquare, Pin, Trash2, Smile, Edit2 } from "lucide-react";
+import { Search, Paperclip, Send, MessageSquare, Pin, Trash2, Smile, Edit2, ArrowLeft } from "lucide-react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { useRouter } from "next/navigation";
 
@@ -51,6 +51,8 @@ interface Message {
   sender?: string; // for group (email)
   message: string;
   sentAt: string;
+  read?: boolean;
+  readBy?: number[];
 }
 
 export function UnreadBadge({ count }: { count: number }) {
@@ -235,12 +237,19 @@ export function ChatView({
         msgs = localLogs ? JSON.parse(localLogs) : [];
       } else {
         const dbMsgs = await fetchGroupMessages(contact.dbId);
-        msgs = dbMsgs.map((m: any) => ({
-          id: m.id,
-          sender: m.sender,
-          message: m.message,
-          sentAt: m.sentAt
-        }));
+        msgs = dbMsgs.map((m: any) => {
+          let parsedReadBy: number[] = [];
+          try {
+            parsedReadBy = JSON.parse(m.readBy || "[]");
+          } catch {}
+          return {
+            id: m.id,
+            sender: m.sender,
+            message: m.message,
+            sentAt: m.sentAt,
+            readBy: parsedReadBy
+          };
+        });
       }
     } else {
       const dbMsgs = await fetchChatMessages(currentUser.id, contact.dbId);
@@ -249,7 +258,8 @@ export function ChatView({
         senderId: m.senderId,
         receiverId: m.receiverId,
         message: m.message,
-        sentAt: m.sentAt
+        sentAt: m.sentAt,
+        read: m.read
       }));
     }
     setMessages(msgs);
@@ -701,7 +711,7 @@ export function ChatView({
   }, [messages]);
 
   return (
-    <div className="chat-layout h-[calc(100vh-140px)] min-h-[480px] overflow-hidden rounded-[14px] border border-jj-border bg-jj-surface">
+    <div className={`chat-layout h-[calc(100vh-140px)] min-h-[480px] overflow-hidden rounded-[14px] border border-jj-border bg-jj-surface ${selectedContact ? "has-selected-contact" : ""}`}>
       {/* Sidebar contact list */}
       <div className="chat-sidebar">
         <div className="chat-sidebar-header flex items-center justify-between">
@@ -783,6 +793,14 @@ export function ChatView({
           <>
             {/* Header info */}
             <div className="chat-header">
+              <button
+                onClick={() => setSelectedContact(null)}
+                className="mr-2 flex items-center justify-center p-1.5 rounded-lg hover:bg-jj-surface2 text-jj-text-soft hover:text-jj-text md:hidden"
+                title="Back to contacts"
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <ArrowLeft size={20} />
+              </button>
               {(() => {
                 const color = COLORS[selectedContact.dbId % COLORS.length] || "#f59e0b";
                 return (
@@ -915,7 +933,28 @@ export function ChatView({
                           hour: "numeric",
                           minute: "2-digit"
                         })}
-                        {isMe && <span className="text-jj-blue ml-1 font-semibold">✓✓</span>}
+                        {isMe && (() => {
+                          const isRead = selectedContact.isGroup
+                            ? (() => {
+                                if (selectedContact.id.startsWith("mock_")) return true;
+                                const groupObj = groups.find((g) => g.id === selectedContact.dbId);
+                                if (!groupObj) return false;
+                                let membersList: string[] = [];
+                                try {
+                                  membersList = JSON.parse(groupObj.members || "[]");
+                                } catch {}
+                                const otherMembersCount = membersList.filter(email => email !== currentUser.email).length;
+                                const readByArray = Array.isArray(m.readBy) ? m.readBy : [];
+                                return readByArray.length >= Math.max(1, otherMembersCount);
+                              })()
+                            : !!m.read;
+
+                          return (
+                            <span className={`${isRead ? "text-jj-blue" : "text-jj-text-soft opacity-40"} ml-1 font-semibold`}>
+                              ✓✓
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   );

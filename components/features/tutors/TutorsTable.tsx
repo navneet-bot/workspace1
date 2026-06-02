@@ -3,46 +3,29 @@
 import { useState, useRef } from "react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { useRouter } from "next/navigation";
-import { AddCandidateModal } from "./AddCandidateModal";
-import { EditCandidateModal } from "./EditCandidateModal";
-import { SendEmailModal } from "./SendEmailModal";
+import { useSession } from "next-auth/react";
+import { AddTutorModal, TutorFormData } from "./AddTutorModal";
+import { EditTutorModal } from "./EditTutorModal";
+import { SendTutorEmailModal } from "./SendTutorEmailModal";
 import * as XLSX from "xlsx";
-import { Check, X as XIcon, Clipboard, Pencil, Mail, Lock, Trash2 } from "lucide-react";
+import { Check, X as XIcon, Clipboard, Pencil, Mail, Trash2, Eye } from "lucide-react";
 import { 
-  bulkImportCandidates, 
-  fetchGoogleSheetCsv,
-  updateCandidateStatus,
-  bulkUpdateCandidateStatus,
-  deleteCandidates,
-  revokeCandidateCredentials
-} from "@/app/actions/candidates";
-
-interface Candidate {
-  id: number;
-  name: string;
-  email: string | null;
-  phone: string;
-  skill: string;
-  resume: string;
-  resumeLink: string;
-  status: string;
-  state: string;
-  college: string;
-  eduDomain: string;
-  duration: string;
-  appliedAt: Date;
-}
+  bulkImportTutors,
+  updateTutorStatus,
+  bulkUpdateTutorStatus,
+  deleteTutors
+} from "@/app/actions/tutors";
+import { fetchGoogleSheetCsv } from "@/app/actions/candidates";
 
 const CSV_FIELDS = [
   { key: "name", label: "Name (Full Name)", icon: "👤", required: true },
   { key: "email", label: "Email Address", icon: "📧", required: true },
   { key: "phone", label: "Phone Number", icon: "📱", required: false },
-  { key: "skill", label: "Primary Skill", icon: "⚡", required: false },
-  { key: "college", label: "College/University", icon: "🎓", required: false },
-  { key: "state", label: "State", icon: "📍", required: false },
-  { key: "edu_domain", label: "Education Domain", icon: "📚", required: false },
-  { key: "duration", label: "Duration", icon: "⏱", required: false },
-  { key: "resume_link", label: "Resume/CV Link", icon: "🔗", required: false }
+  { key: "subject", label: "Subject", icon: "📚", required: false },
+  { key: "experience", label: "Teaching Experience", icon: "⚡", required: false },
+  { key: "qualification", label: "Highest Qualification", icon: "🎓", required: false },
+  { key: "mode", label: "Teaching Mode (Online/Offline/Hybrid)", icon: "⏱", required: false },
+  { key: "location", label: "Location", icon: "📍", required: false }
 ];
 
 function _parseCsv(text: string) {
@@ -67,26 +50,25 @@ function _autoMapFields(headers: string[]) {
     if (h.includes("name") && map.name === undefined) map.name = i;
     else if (h.includes("email") && map.email === undefined) map.email = i;
     else if ((h.includes("phone") || h.includes("mobile")) && map.phone === undefined) map.phone = i;
-    else if ((h.includes("skill") || h.includes("technology")) && map.skill === undefined) map.skill = i;
-    else if ((h.includes("college") || h.includes("university")) && map.college === undefined) map.college = i;
-    else if (h.includes("state") && map.state === undefined) map.state = i;
-    else if ((h.includes("domain") || h.includes("education")) && map.edu_domain === undefined) map.edu_domain = i;
-    else if ((h.includes("duration") || h.includes("months")) && map.duration === undefined) map.duration = i;
-    else if ((h.includes("resume") || h.includes("cv")) && map.resume_link === undefined) map.resume_link = i;
+    else if ((h.includes("subject") || h.includes("course") || h.includes("topic")) && map.subject === undefined) map.subject = i;
+    else if ((h.includes("experience") || h.includes("years")) && map.experience === undefined) map.experience = i;
+    else if ((h.includes("qualification") || h.includes("degree") || h.includes("education")) && map.qualification === undefined) map.qualification = i;
+    else if ((h.includes("mode") || h.includes("teachingmode")) && map.mode === undefined) map.mode = i;
+    else if ((h.includes("location") || h.includes("city") || h.includes("state")) && map.location === undefined) map.location = i;
   }
   return map;
 }
 
-export function CandidatesTable({ initialCandidates }: { initialCandidates: Candidate[] }) {
+export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] }) {
   const router = useRouter();
   const { addToast } = useUIStore();
-  const [candidates, setCandidates] = useState(initialCandidates);
-  const [activeTab, setActiveTab] = useState<"applicants" | "applications">("applicants");
+  const { data: session } = useSession();
+  const [tutors, setTutors] = useState(initialTutors);
   
   // Modals state
   const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [editCandidate, setEditCandidate] = useState<Candidate | null>(null);
-  const [emailCandidate, setEmailCandidate] = useState<Candidate | null>(null);
+  const [editTutor, setEditTutor] = useState<TutorFormData | null>(null);
+  const [emailTutor, setEmailTutor] = useState<TutorFormData | null>(null);
 
   // CSV State
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -99,22 +81,38 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
   const [isSyncPanelOpen, setSyncPanelOpen] = useState(false);
   const [gsheetUrl, setGsheetUrl] = useState("");
   const [syncStatus, setSyncStatus] = useState<React.ReactNode>(null);
-  
   const [isImporting, setIsImporting] = useState(false);
 
   // Filter & Bulk Actions State
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [experienceFilter, setExperienceFilter] = useState("");
+  const [modeFilter, setModeFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const filtered = candidates.filter((c) => {
-    if (activeTab === "applicants" && c.status === "Approved") return false;
-    if (activeTab === "applications" && c.status !== "Approved") return false;
+  // Permissions Check
+  const role = (session?.user as any)?.role || "intern";
+  const permissions = (session?.user as any)?.permissions || "";
+  const hasPerm = (key: string) => role === "admin" || permissions.split(",").map((p: string) => p.trim()).includes(key);
+
+  const filtered = tutors.filter((t) => {
+    if (statusFilter && t.status !== statusFilter) return false;
+    if (subjectFilter && !t.subject.toLowerCase().includes(subjectFilter.toLowerCase())) return false;
+    if (experienceFilter && !t.experience.toLowerCase().includes(experienceFilter.toLowerCase())) return false;
+    if (modeFilter && t.mode !== modeFilter) return false;
+    if (locationFilter && !t.location.toLowerCase().includes(locationFilter.toLowerCase())) return false;
     
-    if (statusFilter && c.status !== statusFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!c.name.toLowerCase().includes(q) && !(c.email || "").toLowerCase().includes(q) && !(c.skill || "").toLowerCase().includes(q)) {
+      if (
+        !t.name.toLowerCase().includes(q) && 
+        !(t.email || "").toLowerCase().includes(q) && 
+        !t.subject.toLowerCase().includes(q) &&
+        !t.qualification.toLowerCase().includes(q) &&
+        !t.location.toLowerCase().includes(q)
+      ) {
         return false;
       }
     }
@@ -123,7 +121,7 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(filtered.map(c => c.id)));
+      setSelectedIds(new Set(filtered.map(t => t.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -137,90 +135,86 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
   };
 
   const handleUpdateStatus = async (id: number, newStatus: string) => {
+    if (!hasPerm("manage_tutor_interviews")) {
+      addToast("You don't have permission to update tutor status", "error");
+      return;
+    }
     addToast(`Updating status to ${newStatus}...`, "info");
-    const res = await updateCandidateStatus(id, newStatus);
+    const res = await updateTutorStatus(id, newStatus);
     if (res.success) {
-      setCandidates(candidates.map((c) => (c.id === id ? { ...c, status: newStatus } : c)));
+      setTutors(tutors.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
       addToast(`Status updated`, "success");
-      
-      if (newStatus === "Approved") {
-        const candidate = candidates.find(c => c.id === id);
-        if (candidate && candidate.email) {
-          try {
-            fetch("/api/send-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: candidate.email, name: candidate.name }),
-            });
-            addToast(`Acceptance email sent to ${candidate.email}!`, "success");
-          } catch (e) {
-            // silent fail
-          }
-        }
-      }
     } else {
       addToast(`Error: ${res.error}`, "error");
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("This will permanently delete the candidate and all associated records. This action cannot be undone.")) return;
-    const res = await deleteCandidates([id]);
+    if (!hasPerm("delete_tutors")) {
+      addToast("You don't have permission to delete tutors", "error");
+      return;
+    }
+    if (!confirm("This will permanently delete the tutor record. This action cannot be undone.")) return;
+    const res = await deleteTutors([id]);
     if (res.success) {
-      setCandidates(candidates.filter(c => c.id !== id));
+      setTutors(tutors.filter(t => t.id !== id));
       setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
-      addToast("Candidate deleted", "success");
+      addToast("Tutor deleted", "success");
     } else {
       addToast(`Error: ${res.error}`, "error");
     }
   };
 
-  const handleRevoke = async (id: number) => {
-    if (!confirm("Are you sure you want to revoke credentials?")) return;
-    const res = await revokeCandidateCredentials(id);
-    if (res.success) {
-      setCandidates(candidates.map((c) => (c.id === id ? { ...c, resume: "" } : c)));
-      addToast("Credentials revoked", "success");
-    } else {
-      addToast(`Error: ${res.error}`, "error");
+  const bulkStatusUpdate = async (status: string) => {
+    if (!hasPerm("manage_tutor_interviews")) {
+      addToast("You don't have permission to manage status", "error");
+      return;
     }
-  };
-
-  const bulkApprove = async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    const res = await bulkUpdateCandidateStatus(ids, "Approved");
+    addToast("Updating statuses...", "info");
+    const res = await bulkUpdateTutorStatus(ids, status);
     if (res.success) {
-      setCandidates(candidates.map((c) => (ids.includes(c.id) ? { ...c, status: "Approved" } : c)));
+      setTutors(tutors.map((t) => (ids.includes(t.id) ? { ...t, status } : t)));
       setSelectedIds(new Set());
-      addToast(`${ids.length} candidates approved`, "success");
+      addToast(`${ids.length} tutors status updated to ${status}`, "success");
     } else {
       addToast(`Error: ${res.error}`, "error");
     }
   };
 
   const bulkDelete = async () => {
+    if (!hasPerm("delete_tutors")) {
+      addToast("You don't have permission to delete tutors", "error");
+      return;
+    }
     if (selectedIds.size === 0) return;
-    if (!confirm("This will permanently delete the candidate and all associated records. This action cannot be undone.")) return;
+    if (!confirm("This will permanently delete the selected tutor records. This action cannot be undone.")) return;
     const ids = Array.from(selectedIds);
-    const res = await deleteCandidates(ids);
+    const res = await deleteTutors(ids);
     if (res.success) {
-      setCandidates(candidates.filter((c) => !ids.includes(c.id)));
+      setTutors(tutors.filter((t) => !ids.includes(t.id)));
       setSelectedIds(new Set());
-      addToast(`${ids.length} candidates deleted`, "success");
+      addToast(`${ids.length} tutors deleted`, "success");
     } else {
       addToast(`Error: ${res.error}`, "error");
     }
   };
 
   const statusBadge = (status: string) => {
-    if (status === "Approved") return <span className="badge badge-green">Approved</span>;
-    if (status === "Rejected") return <span className="badge badge-red">Rejected</span>;
+    if (status === "Selected" || status === "Onboarded") return <span className="badge badge-green">{status}</span>;
+    if (status === "Rejected") return <span className="badge badge-red">{status}</span>;
+    if (status === "Interview Scheduled" || status === "Screening") return <span className="badge badge-purple">{status}</span>;
+    if (status === "Inactive") return <span className="badge badge-gray">{status}</span>;
     return <span className="badge badge-amber">{status}</span>;
   };
 
   // --- CSV Handlers ---
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!hasPerm("import_tutors")) {
+      addToast("You don't have permission to import tutors", "error");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     const isExcel = file.name.match(/\.(xlsx|xls)$/i);
@@ -278,7 +272,7 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
     setIsImporting(true);
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     
-    const preparedCandidates = [];
+    const preparedTutors = [];
     let empty = 0;
     let badEmail = 0;
 
@@ -289,22 +283,21 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
       if (!name || !email) { empty++; continue; }
       if (!emailRe.test(email)) { badEmail++; continue; }
 
-      preparedCandidates.push({
+      preparedTutors.push({
         name,
         email,
         phone: csvFieldMap.phone !== undefined ? (row[csvFieldMap.phone] ?? "").trim() : "",
-        skill: csvFieldMap.skill !== undefined ? (row[csvFieldMap.skill] ?? "").trim() : "",
-        college: csvFieldMap.college !== undefined ? (row[csvFieldMap.college] ?? "").trim() : "",
-        state: csvFieldMap.state !== undefined ? (row[csvFieldMap.state] ?? "").trim() : "",
-        edu_domain: csvFieldMap.edu_domain !== undefined ? (row[csvFieldMap.edu_domain] ?? "").trim() : "",
-        duration: csvFieldMap.duration !== undefined ? (row[csvFieldMap.duration] ?? "").trim() : "",
-        resume_link: csvFieldMap.resume_link !== undefined ? (row[csvFieldMap.resume_link] ?? "").trim() : "",
-        status: "Pending"
+        subject: csvFieldMap.subject !== undefined ? (row[csvFieldMap.subject] ?? "").trim() : "",
+        experience: csvFieldMap.experience !== undefined ? (row[csvFieldMap.experience] ?? "").trim() : "",
+        qualification: csvFieldMap.qualification !== undefined ? (row[csvFieldMap.qualification] ?? "").trim() : "",
+        mode: csvFieldMap.mode !== undefined ? (row[csvFieldMap.mode] ?? "Online").trim() : "Online",
+        location: csvFieldMap.location !== undefined ? (row[csvFieldMap.location] ?? "").trim() : "",
+        status: "Applied"
       });
     }
 
     try {
-      const res = await bulkImportCandidates(preparedCandidates);
+      const res = await bulkImportTutors(preparedTutors);
       const parts = [`✅ ${res.imported} imported`];
       if (res.dupes) parts.push(`${res.dupes} already exist`);
       if (badEmail) parts.push(`${badEmail} invalid email skipped`);
@@ -376,21 +369,21 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
   };
 
   // --- Export Handler ---
-  const exportCandidates = () => {
-    const list = candidates.map(c => ({
-      ID: c.id,
-      Name: c.name,
-      Email: c.email || "",
-      Phone: c.phone || "",
-      Skill: c.skill || "",
-      Status: c.status,
-      State: c.state || "",
-      College: c.college || "",
-      "Edu Domain": c.eduDomain || "",
-      Duration: c.duration || "",
+  const exportTutors = () => {
+    const list = tutors.map(t => ({
+      ID: t.id,
+      Name: t.name,
+      Email: t.email || "",
+      Phone: t.phone || "",
+      Subject: t.subject || "",
+      Experience: t.experience || "",
+      Qualification: t.qualification || "",
+      Mode: t.mode,
+      Location: t.location || "",
+      Status: t.status,
     }));
     
-    if (list.length === 0) { addToast("No candidates to export", "info"); return; }
+    if (list.length === 0) { addToast("No tutors to export", "info"); return; }
     
     const headers = Object.keys(list[0]);
     const csvContent = [
@@ -402,7 +395,7 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `job_jockey_candidates_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `job_jockey_tutors_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -412,79 +405,47 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
     <div className="table-card">
       <div className="table-card-header" style={{ flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <h3 id="candidateTabTitle">
-            {activeTab === "applicants" ? "Applicants" : "Approved Interns"}
-          </h3>
-          <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
-            <button
-              id="tabApplicants"
-              onClick={() => setActiveTab("applicants")}
-              style={{
-                padding: "5px 14px",
-                borderRadius: "6px",
-                border: "none",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all .2s",
-                background: activeTab === "applicants" ? "var(--accent)" : "transparent",
-                color: activeTab === "applicants" ? "#000" : "var(--text-muted)"
-              }}
-            >
-              📋 Applicants
-            </button>
-            <button
-              id="tabApplications"
-              onClick={() => setActiveTab("applications")}
-              style={{
-                padding: "5px 14px",
-                borderRadius: "6px",
-                border: "none",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all .2s",
-                background: activeTab === "applications" ? "var(--accent)" : "transparent",
-                color: activeTab === "applications" ? "#000" : "var(--text-muted)"
-              }}
-            >
-              ✅ Approved
-            </button>
-          </div>
+          <h3 id="tutorsTabTitle">👨‍🏫 Tutor Recruitment Pipeline</h3>
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-          <button 
-            onClick={() => setAddModalOpen(true)}
-            className="btn-sm btn-accent"
-            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
-          >
-            + Add Candidate
-          </button>
+          {hasPerm("create_tutors") && (
+            <button 
+              onClick={() => setAddModalOpen(true)}
+              className="btn-sm btn-accent"
+              style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+            >
+              + Add Tutor
+            </button>
+          )}
           
-          <label style={{ cursor: "pointer" }} title="Upload CSV file">
-            <span className="btn-sm btn-outline" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              📁 Upload CSV / Excel
-            </span>
-            <input 
-              type="file" 
-              accept=".csv,.xlsx,.xls" 
-              className="hidden" 
-              ref={fileInputRef}
-              onChange={handleCsvUpload} 
-            />
-          </label>
+          {hasPerm("import_tutors") && (
+            <>
+              <label style={{ cursor: "pointer" }} title="Upload CSV file">
+                <span className="btn-sm btn-outline" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  📁 Upload CSV / Excel
+                </span>
+                <input 
+                  type="file" 
+                  accept=".csv,.xlsx,.xls" 
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleCsvUpload} 
+                />
+              </label>
+
+              <button 
+                onClick={() => { setSyncPanelOpen(!isSyncPanelOpen); setCsvPreviewOpen(false); }}
+                className="btn-sm btn-outline"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+              >
+                🔗 Google Sheets Sync
+              </button>
+            </>
+          )}
 
           <button 
-            onClick={() => { setSyncPanelOpen(!isSyncPanelOpen); setCsvPreviewOpen(false); }}
-            className="btn-sm btn-outline"
-            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
-          >
-            🔗 Google Form Sync
-          </button>
-
-          <button 
-            onClick={exportCandidates}
+            onClick={exportTutors}
             className="btn-sm btn-outline"
             style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
           >
@@ -547,7 +508,7 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
             gap: "18px",
           }}>
             <div className="flex items-center justify-between">
-              <h3 className="modal-title" style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>📁 Map Columns → Portal Fields</h3>
+              <h3 className="modal-title" style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>📁 Map Columns → Tutors Fields</h3>
               <div className="table-panel-meta text-xs text-jj-text-muted">{csvRows.length} rows · {csvHeaders.length} columns</div>
             </div>
             
@@ -649,7 +610,7 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
                       return (
                         <tr key={rIdx} className={invalid ? "bg-jj-red/10" : ""}>
                           <td className="whitespace-nowrap border-t border-jj-border text-[11px]">
-                            {invalid ? <span className="text-jj-red" title="Invalid/missing name or email">⚠️</span> : <span className="text-jj-green">✅</span>}
+                             {invalid ? <span className="text-jj-red" title="Invalid/missing name or email">⚠️</span> : <span className="text-jj-green">✅</span>}
                           </td>
                           {CSV_FIELDS.map(f => {
                             const colIdx = csvFieldMap[f.key];
@@ -677,12 +638,6 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
                 {isImporting ? "⏳ Importing..." : "✓ Import"}
               </button>
               <button 
-                onClick={() => addToast("Preview refreshed", "success")}
-                className="btn-sm btn-outline px-4 py-2 text-[12.5px] font-bold"
-              >
-                🔄 Refresh Preview
-              </button>
-              <button 
                 onClick={() => setCsvPreviewOpen(false)}
                 className="btn-sm btn-outline px-4 py-2 text-[12.5px] font-bold"
               >
@@ -704,160 +659,218 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
           /> 
           Select All
         </label>
-        <button onClick={bulkApprove} className="action-btn action-approve">
-          Approve Selected
-        </button>
-        <button onClick={bulkDelete} className="action-btn action-reject">
-          Delete Selected
-        </button>
+        
+        {hasPerm("manage_tutor_interviews") && (
+          <>
+            <button onClick={() => bulkStatusUpdate("Interview Scheduled")} className="action-btn action-approve">
+              Invite to Interview
+            </button>
+            <button onClick={() => bulkStatusUpdate("Selected")} className="action-btn action-approve" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>
+              Select Selected
+            </button>
+            <button onClick={() => bulkStatusUpdate("Onboarded")} className="action-btn action-approve" style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6" }}>
+              Onboard Selected
+            </button>
+          </>
+        )}
+        
+        {hasPerm("delete_tutors") && (
+          <button onClick={bulkDelete} className="action-btn action-reject">
+            Delete Selected
+          </button>
+        )}
         <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{selectedIds.size} selected</span>
       </div>
 
-      {/* Search & Filter */}
-      <div className="table-tools">
+      {/* Complex Filters & Search */}
+      <div className="table-tools" style={{ flexWrap: "wrap", gap: "10px" }}>
         <input 
           type="text" 
-          placeholder="🔍 Search candidates..." 
+          placeholder="🔍 Search name, email, subject, location..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
+          style={{ flex: "1 1 200px" }}
         />
+        
         <select 
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="filter-select"
-          id="candidateStatusFilter"
         >
-          <option value="">All</option>
-          <option value="Pending">Pending</option>
+          <option value="">All Statuses</option>
+          <option value="Applied">Applied</option>
+          <option value="Screening">Screening</option>
+          <option value="Interview Scheduled">Interview Scheduled</option>
+          <option value="Selected">Selected</option>
+          <option value="Onboarded">Onboarded</option>
           <option value="Rejected">Rejected</option>
+          <option value="Inactive">Inactive</option>
         </select>
+
+        <select 
+          value={modeFilter}
+          onChange={(e) => setModeFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="">All Modes</option>
+          <option value="Online">Online</option>
+          <option value="Offline">Offline</option>
+          <option value="Hybrid">Hybrid</option>
+        </select>
+
+        <input 
+          type="text" 
+          placeholder="Filter by Subject..." 
+          value={subjectFilter}
+          onChange={(e) => setSubjectFilter(e.target.value)}
+          className="search-input !py-1 !px-2"
+          style={{ flex: "0 1 140px", fontSize: "12.5px" }}
+        />
+
+        <input 
+          type="text" 
+          placeholder="Filter by Exp..." 
+          value={experienceFilter}
+          onChange={(e) => setExperienceFilter(e.target.value)}
+          className="search-input !py-1 !px-2"
+          style={{ flex: "0 1 120px", fontSize: "12.5px" }}
+        />
+
+        <input 
+          type="text" 
+          placeholder="Filter by Location..." 
+          value={locationFilter}
+          onChange={(e) => setLocationFilter(e.target.value)}
+          className="search-input !py-1 !px-2"
+          style={{ flex: "0 1 140px", fontSize: "12.5px" }}
+        />
       </div>
 
-      {/* Candidates Table (Full Columns) */}
+      {/* Tutors Table */}
       <div className="table-scroll">
-        <table style={{ minWidth: "1200px" }}>
+        <table style={{ minWidth: "1100px" }}>
           <thead>
             <tr>
               <th style={{ width: 30 }}></th>
               <th>Name</th>
               <th>Email</th>
               <th>Phone</th>
-              <th>Skills</th>
+              <th>Subject</th>
+              <th>Experience</th>
+              <th>Mode</th>
+              <th>Location</th>
               <th>Status</th>
-              <th>State</th>
-              <th>College/University</th>
-              <th>Domain</th>
-              <th>Duration</th>
-              <th>Resume</th>
-              <th style={{ minWidth: "220px" }}>Actions</th>
+              <th style={{ minWidth: "180px" }}>Actions</th>
             </tr>
           </thead>
-          <tbody id="candidateBody">
+          <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={12} style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
-                  No {activeTab} found — use Google Form Sync or Upload CSV above!
+                <td colSpan={10} style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
+                  No tutors found — click Add Tutor or Upload CSV to start!
                 </td>
               </tr>
             ) : (
-              filtered.map((c) => (
-                <tr key={c.id} id={`crow_${c.id}`}>
+              filtered.map((t) => (
+                <tr key={t.id}>
                   <td>
                     <input 
                       type="checkbox" 
                       style={{ accentColor: "var(--accent)" }}
-                      checked={selectedIds.has(c.id)}
-                      onChange={() => toggleSelect(c.id)}
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelect(t.id)}
                     />
                   </td>
-                  <td><strong>{c.name}</strong></td>
-                  <td style={{ fontSize: 12 }}>{c.email || "—"}</td>
-                  <td>{c.phone || "—"}</td>
-                  <td>{c.skill || "—"}</td>
-                  <td>{statusBadge(c.status)}</td>
-                  <td>{c.state || "—"}</td>
-                  <td style={{ maxWidth: 140, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={c.college || ""}>
-                    {c.college || "—"}
-                  </td>
-                  <td>{c.eduDomain || "—"}</td>
-                  <td>{c.duration || "—"}</td>
                   <td>
-                    {c.resumeLink ? (
-                      <a href={c.resumeLink} target="_blank" style={{ color: "var(--accent)", fontSize: 12 }}>View</a>
-                    ) : c.resume && !c.resume.startsWith("LOGIN:") ? (
-                      <a href={c.resume} target="_blank" style={{ color: "var(--accent)", fontSize: 12 }}>View</a>
-                    ) : (
-                      "—"
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {t.profilePhoto ? (
+                        <img 
+                          src={t.profilePhoto} 
+                          alt={t.name}
+                          style={{ width: "26px", height: "26px", borderRadius: "50%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          color: "var(--text-soft)"
+                        }}>
+                          {t.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <strong>{t.name}</strong>
+                    </div>
                   </td>
+                  <td style={{ fontSize: 12 }}>{t.email || "—"}</td>
+                  <td>{t.phone || "—"}</td>
+                  <td>{t.subject || "—"}</td>
+                  <td>{t.experience || "—"}</td>
+                  <td>{t.mode}</td>
+                  <td>{t.location || "—"}</td>
+                  <td>{statusBadge(t.status)}</td>
                   <td>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      {c.status === "Pending" && (
-                        <>
-                          <button
-                            onClick={() => handleUpdateStatus(c.id, "Approved")}
-                            className="action-btn action-approve flex items-center justify-center"
-                            style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                            title="Approve"
-                          >
-                            <Check size={12} className="stroke-[2.5]" />
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(c.id, "Rejected")}
-                            className="action-btn action-reject flex items-center justify-center"
-                            style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                            title="Reject"
-                          >
-                            <XIcon size={12} className="stroke-[2.5]" />
-                          </button>
-                        </>
-                      )}
-                      {c.status === "Approved" && (
+                      <button
+                        onClick={() => router.push(`/dashboard/tutors/${t.id}`)}
+                        className="action-btn action-edit flex items-center justify-center"
+                        style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
+                        title="View Profile Details & Pipeline"
+                      >
+                        <Eye size={12} className="stroke-[2.5]" />
+                      </button>
+
+                      {hasPerm("manage_tutor_interviews") && t.status === "Applied" && (
                         <button
-                          onClick={() => router.push(`/dashboard/tasks?assignTo=${encodeURIComponent(c.email || "")}`)}
+                          onClick={() => handleUpdateStatus(t.id, "Screening")}
+                          className="action-btn action-approve flex items-center justify-center"
+                          style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
+                          title="Screen Tutor"
+                        >
+                          <Check size={12} className="stroke-[2.5]" />
+                        </button>
+                      )}
+
+                      {hasPerm("edit_tutors") && (
+                        <button
+                          onClick={() => setEditTutor(t)}
                           className="action-btn action-edit flex items-center justify-center"
                           style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                          title="Assign Task"
+                          title="Edit Profile"
                         >
-                          <Clipboard size={12} className="stroke-[2.5]" />
+                          <Pencil size={12} className="stroke-[2.5]" />
                         </button>
                       )}
-                      <button
-                        onClick={() => setEditCandidate(c)}
-                        className="action-btn action-edit flex items-center justify-center"
-                        style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                        title="Edit Info"
-                      >
-                        <Pencil size={12} className="stroke-[2.5]" />
-                      </button>
-                      <button
-                        onClick={() => setEmailCandidate(c)}
-                        className="action-btn action-edit flex items-center justify-center"
-                        style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                        title="Send Email"
-                      >
-                        <Mail size={12} className="stroke-[2.5]" />
-                      </button>
-                      {c.status === "Approved" && c.resume && c.resume.startsWith("LOGIN:") && (
+
+                      {t.email && (
                         <button
-                          onClick={() => handleRevoke(c.id)}
-                          className="action-btn action-reject flex items-center justify-center gap-1"
-                          style={{ background: "rgba(139,92,246,0.15)", color: "#c084fc", height: "28px", padding: "0 8px", borderRadius: "6px" }}
-                          title="Revoke Credentials"
+                          onClick={() => setEmailTutor(t)}
+                          className="action-btn action-edit flex items-center justify-center"
+                          style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
+                          title="Send Email"
                         >
-                          <Lock size={12} className="stroke-[2.5]" />
-                          <span style={{ fontSize: "11px", fontWeight: 600 }}>Revoke</span>
+                          <Mail size={12} className="stroke-[2.5]" />
                         </button>
                       )}
-                      <button
-                        onClick={() => handleDelete(c.id)}
-                        className="action-btn action-reject flex items-center justify-center"
-                        style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                        title="Delete"
-                      >
-                        <Trash2 size={12} className="stroke-[2.5]" />
-                      </button>
+
+                      {hasPerm("delete_tutors") && (
+                        <button
+                          onClick={() => handleDelete(t.id)}
+                          className="action-btn action-reject flex items-center justify-center"
+                          style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
+                          title="Delete Record"
+                        >
+                          <Trash2 size={12} className="stroke-[2.5]" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -865,29 +878,29 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
             )}
           </tbody>
         </table>
-        {/* Spacer to prevent horizontal scrollbar from obscuring the last row */}
+        {/* Spacer to prevent scrollbar overlap */}
         <div style={{ height: "64px" }} />
       </div>
 
-      <AddCandidateModal 
+      <AddTutorModal 
         isOpen={isAddModalOpen} 
         onClose={() => setAddModalOpen(false)} 
-        onAdd={(newCandidate: any) => setCandidates([...candidates, newCandidate])} 
+        onAdd={(newTutor: any) => setTutors([...tutors, newTutor])} 
       />
       
-      <EditCandidateModal
-        isOpen={!!editCandidate}
-        onClose={() => setEditCandidate(null)}
-        candidate={editCandidate as any}
+      <EditTutorModal
+        isOpen={!!editTutor}
+        onClose={() => setEditTutor(null)}
+        tutor={editTutor}
         onUpdate={(updated) => {
-          setCandidates(candidates.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+          setTutors(tutors.map(t => t.id === updated.id ? { ...t, ...updated } : t));
         }}
       />
       
-      <SendEmailModal
-        isOpen={!!emailCandidate}
-        onClose={() => setEmailCandidate(null)}
-        candidate={emailCandidate}
+      <SendTutorEmailModal
+        isOpen={!!emailTutor}
+        onClose={() => setEmailTutor(null)}
+        tutor={emailTutor}
       />
     </div>
   );

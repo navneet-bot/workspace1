@@ -63,6 +63,7 @@ model Candidate {
   college     String   @default("")
   eduDomain   String   @default("")
   duration    String   @default("")
+  category    String   @default("")
   extraData   String   @default("") // JSON: extra CSV columns
   appliedAt   DateTime @default(now())
 
@@ -178,3 +179,45 @@ model Config {
 
   @@map("config")
 }
+
+model Tutor {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String?
+  phone          String   @default("")
+  gender         String   @default("")
+  dob            String   @default("")
+  location       String   @default("")
+  profilePhoto   String   @default("")
+  
+  // Academic Information
+  qualification  String   @default("")
+  university     String   @default("")
+  degree         String   @default("")
+  specialization String   @default("")
+  gradYear       String   @default("")
+  
+  // Teaching Information
+  subject        String   @default("")
+  experience     String   @default("")
+  mode           String   @default("Online") // Online, Offline, Hybrid
+  
+  // Professional Details
+  occupation     String   @default("")
+  prevInst       String   @default("")
+  certifications String   @default("")
+  portfolio      String   @default("")
+  linkedinUrl    String   @default("")
+  resumeUrl      String   @default("")
+  
+  // Tutor Status
+  status         String   @default("Applied") // Applied, Screening, Interview Scheduled, Selected, Onboarded, Rejected, Inactive
+  interviewNotes String   @default("")
+  statusHistory  String   @default("[]") // JSON log list: e.g. [{"status": "Applied", "timestamp": "..."}]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("tutors")
+}
+

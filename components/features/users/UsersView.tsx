@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { promoteUser, demoteUser, deleteUser, updateUserPermissions } from "@/app/actions/users";
+import { Trash2 } from "lucide-react";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -22,6 +23,12 @@ const ALL_PERMISSIONS = [
   { key: "manage_groups", label: "Manage Groups", desc: "Can create and manage groups", icon: "👥" },
   { key: "manage_meetings", label: "Schedule Meetings", desc: "Can schedule and manage meetings", icon: "📅" },
   { key: "manage_candidates", label: "View Candidates", desc: "Can view and manage candidates", icon: "🎯" },
+  { key: "view_tutors", label: "View Tutors", desc: "Can view the list of tutor applications", icon: "👨‍🏫" },
+  { key: "create_tutors", label: "Create Tutors", desc: "Can manually add tutor records", icon: "➕" },
+  { key: "edit_tutors", label: "Edit Tutors", desc: "Can modify tutor credentials and profiles", icon: "📝" },
+  { key: "delete_tutors", label: "Delete Tutors", desc: "Can delete tutor records from the system", icon: "🗑️" },
+  { key: "import_tutors", label: "Import Tutors", desc: "Can bulk import tutors via CSV or Google Sheets", icon: "📥" },
+  { key: "manage_tutor_interviews", label: "Manage Tutor Interviews", desc: "Can schedule interviews and update tutor status", icon: "💬" },
   { key: "send_notifications", label: "Send Notifications", desc: "Can send notifications to team", icon: "🔔" },
   { key: "view_productivity", label: "View Productivity", desc: "Can view productivity reports", icon: "📊" },
   { key: "manage_projects", label: "Manage Projects", desc: "Can create and update projects", icon: "🚀" },
@@ -209,9 +216,10 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
                         )}
                         <button
                           onClick={() => handleDelete(u.id, u.name)}
-                          className="action-btn action-reject"
+                          className="action-btn action-reject flex items-center justify-center"
+                          style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
                         >
-                          🗑
+                          <Trash2 size={12} className="stroke-[2.5]" />
                         </button>
                       </>
                     ) : (
@@ -270,17 +278,13 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-jj-surface border border-jj-border rounded-[20px] w-full max-w-[520px] shadow-[0_24px_64px_rgba(0,0,0,0.5)] max-h-[90vh] flex flex-col overflow-hidden"
+              className="modal permissions-modal shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
             >
               {/* Header */}
-              <div className="p-5 md:p-[24px_32px] border-b border-jj-border flex items-center justify-between shrink-0">
+              <div className="permissions-modal-header">
                 <div>
-                  <h3 className="m-0 text-[16px] font-bold text-jj-text">
-                    {permMode === "promote" ? "🔧 Promote to Super Admin & Set Permissions" : "🔧 Set Permissions"}
-                  </h3>
-                  <p className="m-0 mt-1 text-[12.5px] text-jj-text-muted">
-                    ⭐ {selectedUser.name} — Super Admin
-                  </p>
+                  <h2>{permMode === "promote" ? "Promote to Super Admin" : "Set Permissions"}</h2>
+                  <p>Configure permissions for {selectedUser.name}</p>
                 </div>
                 <button
                   onClick={() => setIsPermModalOpen(false)}
@@ -291,37 +295,40 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
               </div>
 
               {/* Quick select */}
-              <div className="p-[12px_20px] md:p-[12px_32px] border-b border-jj-border flex gap-2 shrink-0 items-center">
-                <button className="action-btn action-approve" onClick={() => handleSelectAll(true)}>✓ Select All</button>
-                <button className="action-btn action-reject" onClick={() => handleSelectAll(false)}>✕ Clear All</button>
-                <span id="permCount" className="text-[12px] text-jj-accent">{selectedPerms.length} selected</span>
+              <div className="permissions-quick-select">
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button className="action-btn action-approve" onClick={() => handleSelectAll(true)}>Select All</button>
+                  <button className="action-btn action-reject" onClick={() => handleSelectAll(false)}>Clear All</button>
+                </div>
+                <span
+                  style={{ marginLeft: "auto", fontWeight: 600 }}
+                  className={`text-[13px] ${selectedPerms.length > 0 ? "text-jj-accent" : "text-jj-text-muted"}`}
+                >
+                  {selectedPerms.length} Selected
+                </span>
               </div>
 
               {/* Permissions list */}
-              <div className="overflow-y-auto flex-1 p-5 md:p-[16px_32px] flex flex-col gap-4">
+              <div className="permissions-grid">
                 {ALL_PERMISSIONS.map((p) => {
                   const isChecked = selectedPerms.includes(p.key);
                   return (
                     <label
                       key={p.key}
-                      style={{
-                        border: `1px solid ${isChecked ? "var(--accent)" : "var(--border)"}`,
-                        background: isChecked ? "rgba(245,158,11,0.06)" : "transparent"
-                      }}
-                      className="flex items-start gap-3 p-3.5 rounded-[12px] cursor-pointer transition-all hover:border-jj-accent"
+                      className={`permission-item ${isChecked ? "selected" : ""}`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => togglePerm(p.key)}
-                        style={{ accentColor: "var(--accent)" }}
-                        className="w-[18px] h-[18px] shrink-0 mt-0.5"
+                        className="permission-item-checkbox"
                       />
-                      <div>
-                        <div className="text-[13px] font-semibold text-jj-text">
-                          {p.icon} {p.label}
+                      <div className="flex-1 min-w-0">
+                        <div className="permission-item-title">
+                          <span>{p.icon}</span>
+                          <span>{p.label}</span>
                         </div>
-                        <div className="text-[11.5px] text-jj-text-muted mt-0.5">
+                        <div className="permission-item-desc">
                           {p.desc}
                         </div>
                       </div>
@@ -331,11 +338,11 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
               </div>
 
               {/* Footer */}
-              <div className="p-5 md:p-[20px_32px] border-t border-jj-border flex gap-2 justify-end shrink-0">
+              <div className="permissions-modal-footer">
                 <button
                   type="button"
                   onClick={() => setIsPermModalOpen(false)}
-                  className="btn-sm btn-outline"
+                  className="btn-large btn-outline"
                 >
                   Cancel
                 </button>
@@ -343,7 +350,7 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
                   type="button"
                   onClick={savePermissions}
                   disabled={loading}
-                  className="btn-sm btn-accent"
+                  className="btn-large btn-accent"
                 >
                   {loading ? "Saving..." : "✓ Save Permissions"}
                 </button>

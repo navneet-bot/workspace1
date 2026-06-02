@@ -25,6 +25,7 @@ const TITLES: Record<string, string> = {
   "/dashboard/notifications": "Notifications",
   "/dashboard/mytasks": "My Tasks",
   "/dashboard/settings": "Settings",
+  "/dashboard/tutors": "Tutors",
 };
 
 const SUBTITLES: Record<string, string> = {
@@ -44,6 +45,7 @@ const SUBTITLES: Record<string, string> = {
   "/dashboard/notifications": "Alerts and updates",
   "/dashboard/mytasks": "Your assigned tasks",
   "/dashboard/settings": "Account, email & security settings",
+  "/dashboard/tutors": "Tutor recruitment, onboarding & management",
 };
 
 interface Notification {
@@ -200,8 +202,13 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
     router.push(route);
   };
 
-  const title = TITLES[pathname] || "Dashboard";
-  const subtitle = SUBTITLES[pathname] || "Welcome back 👋";
+  let title = TITLES[pathname] || "Dashboard";
+  let subtitle = SUBTITLES[pathname] || "Welcome back 👋";
+
+  if (pathname.startsWith("/dashboard/tutors/") && pathname !== "/dashboard/tutors") {
+    title = "Tutor Profile";
+    subtitle = "Review academic background, teaching mode and notes";
+  }
 
   return (
     <>

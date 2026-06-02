@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { createGroup, deleteGroup } from "@/app/actions/groups";
+import { Trash2 } from "lucide-react";
 
 
 interface User {
@@ -345,9 +346,10 @@ export function GroupsGrid({
                           e.stopPropagation();
                           handleDelete(g.id);
                         }}
-                        className="action-btn action-reject"
+                        className="action-btn action-reject flex items-center justify-center"
+                        style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
                       >
-                        🗑
+                        <Trash2 size={12} className="stroke-[2.5]" />
                       </button>
                     )}
                   </div>

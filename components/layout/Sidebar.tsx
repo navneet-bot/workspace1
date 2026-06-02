@@ -16,7 +16,8 @@ import {
   Video,
   Calendar,
   Bell,
-  LogOut
+  LogOut,
+  GraduationCap
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useUIStore } from "@/hooks/useUIStore";
@@ -48,6 +49,7 @@ function getNavSections(role: string, permissions: string): NavSection[] {
         items: [
           { id: "users", name: "Users & Roles", href: "/dashboard/users", icon: Users },
           { id: "candidates", name: "Candidates", href: "/dashboard/candidates", icon: Users },
+          { id: "tutors", name: "Tutors", href: "/dashboard/tutors", icon: GraduationCap },
           { id: "tasks", name: "Tasks", href: "/dashboard/tasks", icon: ListTodo },
           { id: "projects", name: "Projects", href: "/dashboard/projects", icon: FolderKanban },
           { id: "attendance", name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
@@ -81,6 +83,10 @@ function getNavSections(role: string, permissions: string): NavSection[] {
       { id: "attendance", name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
       { id: "reports", name: "Reports", href: "/dashboard/reports", icon: FileText }
     ];
+
+    if (hasPerm("view_tutors")) {
+      manageItems.splice(3, 0, { id: "tutors", name: "Tutors", href: "/dashboard/tutors", icon: GraduationCap });
+    }
 
     if (hasPerm("view_worklogs")) {
       manageItems.push({ id: "worklogs", name: "Work Logs", href: "/dashboard/worklogs", icon: FileText });
