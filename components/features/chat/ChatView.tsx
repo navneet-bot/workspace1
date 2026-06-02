@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   fetchChatMessages, 
   sendChatMessage, 
@@ -627,16 +627,78 @@ export function ChatView({
       );
     }
 
-    // Linkify urls
-    const esc = msg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const linkified = esc.replace(
-      /(https?:\/\/[^\s<>"&]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-jj-accent underline break-all">$1</a>'
+    // Linkify urls — use React elements to avoid Next.js router intercepting raw <a> clicks
+    const urlRegex = /(https?:\/\/[^\s<>"&]+)/g;
+    const parts = msg.split(urlRegex);
+    if (parts.length === 1) {
+      // No URLs found, render plain text
+      return <span>{msg}</span>;
+    }
+    // split() with a capturing group alternates: [text, url, text, url, ...]
+    // odd-indexed parts are the captured URLs
+    return (
+      <span>
+        {parts.map((part, i) =>
+          i % 2 === 1 ? (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-jj-accent underline break-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(part, "_blank", "noopener,noreferrer");
+                e.preventDefault();
+              }}
+            >
+              {part}
+            </a>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </span>
     );
-    return <div dangerouslySetInnerHTML={{ __html: linkified }} />;
   };
 
   const sortedContactsList = getSortedContacts();
+
+  // ── WhatsApp-style date grouping ──
+  const getDateLabel = (dateStr: string): string => {
+    const msgDate = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isSameDay = (a: Date, b: Date) =>
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+
+    if (isSameDay(msgDate, today)) return "Today";
+    if (isSameDay(msgDate, yesterday)) return "Yesterday";
+    return msgDate.toLocaleDateString("en-IN", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const groupedMessages = useMemo(() => {
+    const items: ({ type: "separator"; label: string } | { type: "message"; data: Message })[] = [];
+    let lastLabel = "";
+    for (const m of messages) {
+      const label = getDateLabel(m.sentAt);
+      if (label !== lastLabel) {
+        items.push({ type: "separator", label });
+        lastLabel = label;
+      }
+      items.push({ type: "message", data: m });
+    }
+    return items;
+  }, [messages]);
 
   return (
     <div className="chat-layout h-[calc(100vh-140px)] min-h-[480px] overflow-hidden rounded-[14px] border border-jj-border bg-jj-surface">
@@ -800,7 +862,18 @@ export function ChatView({
                   <p>Say hello to {selectedContact.name}! 👋</p>
                 </div>
               ) : (
-                messages.map((m) => {
+                groupedMessages.map((item, idx) => {
+                  if (item.type === "separator") {
+                    return (
+                      <div key={`sep-${idx}`} className="chat-date-divider">
+                        <div className="line" />
+                        <span>{item.label}</span>
+                        <div className="line" />
+                      </div>
+                    );
+                  }
+
+                  const m = item.data;
                   // Direct message is senderId. Group message is sender (email)
                   const isMe = selectedContact.isGroup
                     ? m.sender === currentUser.email

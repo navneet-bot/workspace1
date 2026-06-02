@@ -749,7 +749,7 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
               <th>Domain</th>
               <th>Duration</th>
               <th>Resume</th>
-              <th>Actions</th>
+              <th style={{ minWidth: "220px" }}>Actions</th>
             </tr>
           </thead>
           <tbody id="candidateBody">
@@ -814,6 +814,8 @@ export function CandidatesTable({ initialCandidates }: { initialCandidates: Cand
             )}
           </tbody>
         </table>
+        {/* Spacer to prevent horizontal scrollbar from obscuring the last row */}
+        <div style={{ height: "64px" }} />
       </div>
 
       <AddCandidateModal 
