@@ -3,6 +3,7 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { sendCustomEmail } from "@/lib/email/resend";
+import bcrypt from "bcryptjs";
 
 export async function createTutor(data: any) {
   try {
@@ -105,44 +106,86 @@ export async function updateTutorStatus(id: number, status: string, notes?: stri
       notes: notes || `Status updated to ${status}`
     });
 
-    const updated = await prisma.tutor.update({
-      where: { id },
-      data: {
-        status,
-        interviewNotes: notes !== undefined ? notes : existing.interviewNotes,
-        statusHistory: JSON.stringify(historyList)
+    // If status is Onboarded, create user account & send credentials
+    if (status === "Onboarded") {
+      if (!existing.email) {
+        return { success: false, error: "Tutor email is required for onboarding" };
       }
-    });
+      const tutorEmail = existing.email;
 
-    // Notify tutor by email based on status triggers
-    if (existing.email) {
-      try {
-        if (status === "Interview Scheduled") {
+      // Ensure email uniqueness in User model
+      const existingUser = await prisma.user.findUnique({ where: { email: tutorEmail } });
+      let generatedPassword = "";
+      let hashedPassword = "";
+      if (!existingUser) {
+        // Generate Unique Password (FIRST 3 LETTERS + RANDOM 3 DIGITS)
+        const letters = existing.name.replace(/[^a-zA-Z]/g, '');
+        const prefix = (letters.length >= 3 ? letters.slice(0, 3) : letters.padEnd(3, 'X')).toUpperCase();
+        const digits = Math.floor(100 + Math.random() * 900); // 100 to 999
+        generatedPassword = `${prefix}${digits}`;
+        hashedPassword = await bcrypt.hash(generatedPassword, 10);
+      }
+
+      await prisma.$transaction(async (tx) => {
+        if (!existingUser) {
+          // Create User with role "tutor"
+          await tx.user.create({
+            data: {
+              name: existing.name,
+              email: tutorEmail,
+              password: hashedPassword,
+              role: "tutor",
+              permissions: "",
+              mustChangePassword: true,
+            }
+          });
+        }
+
+        // Update Tutor status
+        await tx.tutor.update({
+          where: { id },
+          data: {
+            status,
+            interviewNotes: notes !== undefined ? notes : existing.interviewNotes,
+            statusHistory: JSON.stringify(historyList)
+          }
+        });
+      });
+
+      // Dispatch onboarding email with credentials if user was newly created
+      if (!existingUser && generatedPassword) {
+        try {
+          const { sendInvitationEmail } = await import("@/lib/email/resend");
+          await sendInvitationEmail(tutorEmail, existing.name, "tutor", tutorEmail, generatedPassword);
+        } catch (mailError) {
+          console.error("Resend welcome email failed to send for tutor:", mailError);
+        }
+      } else if (existing.email) {
+        // Email standard custom onboarding notification if user already exists
+        try {
           await sendCustomEmail(
-            existing.email,
-            "👨‍🏫 Tutor Interview Invitation - Job Jockey",
-            `Dear ${existing.name},\n\nWe are pleased to invite you for an interview for the Tutor position. Details of the schedule and link will follow soon.\n\nBest Regards,\nJob Jockey Team`,
-            existing.name
-          );
-        } else if (status === "Selected") {
-          await sendCustomEmail(
-            existing.email,
-            "🎉 Selected for Tutor Position - Job Jockey",
-            `Dear ${existing.name},\n\nWe are delighted to inform you that you have been selected for the Tutor position at Job Jockey.\n\nBest Regards,\nJob Jockey Team`,
-            existing.name
-          );
-        } else if (status === "Onboarded") {
-          await sendCustomEmail(
-            existing.email,
+            tutorEmail,
             "🤝 Tutor Onboarding Invitation - Job Jockey",
             `Dear ${existing.name},\n\nWelcome to our team! We have marked you as successfully onboarded. Please check in with your administrator to complete any remaining documentation.\n\nBest Regards,\nJob Jockey Team`,
             existing.name
           );
+        } catch (mailErr) {
+          console.error("Failed to send tutor custom onboard email:", mailErr);
         }
-      } catch (mailErr) {
-        console.error("Failed to send tutor status update email:", mailErr);
       }
+    } else {
+      // Just update status if not Onboarded
+      await prisma.tutor.update({
+        where: { id },
+        data: {
+          status,
+          interviewNotes: notes !== undefined ? notes : existing.interviewNotes,
+          statusHistory: JSON.stringify(historyList)
+        }
+      });
     }
+
+    const updated = await prisma.tutor.findUnique({ where: { id } });
 
     // In-app Notification for Admins/Super Admins
     try {

@@ -7,7 +7,10 @@ export async function updateTaskStatus(taskId: number, newStatus: string) {
   try {
     await prisma.task.update({
       where: { id: taskId },
-      data: { status: newStatus },
+      data: { 
+        status: newStatus,
+        completedAt: newStatus === "Completed" ? new Date() : null,
+      },
     });
     revalidatePath("/dashboard/mytasks");
     revalidatePath("/dashboard/tasks");

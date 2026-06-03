@@ -29,6 +29,22 @@ export async function demoteUser(id: number) {
   }
 }
 
+export async function updateUserRole(id: number, role: string) {
+  try {
+    await prisma.user.update({
+      where: { id },
+      data: {
+        role,
+        permissions: role === "super_admin" ? undefined : "",
+      },
+    });
+    revalidatePath("/dashboard/users");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to update role" };
+  }
+}
+
 export async function updateUserPermissions(id: number, permissions: string) {
   try {
     await prisma.user.update({

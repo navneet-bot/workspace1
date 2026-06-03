@@ -123,7 +123,7 @@ function LoginForm() {
           </button>
 
           <p className="domain-note">
-            Only <span>@jobjockey.in</span> emails are allowed
+            Only <span>@jobjockey.in</span> or registered tutor <span>@gmail.com</span> emails are allowed
           </p>
         </form>
       </div>

@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { redirect } from "next/navigation";
-import { ProductivityView, ProductivityStat } from "@/components/features/productivity/ProductivityView";
+import { ProductivityView } from "@/components/features/productivity/ProductivityView";
+import { getAllInternsProductivity } from "@/app/actions/productivity";
 
 export default async function ProductivityPage() {
   const session = await getServerSession(authOptions);
@@ -15,80 +16,51 @@ export default async function ProductivityPage() {
     where: { email: session.user.email }
   });
 
-  if (!currentUser || currentUser.role === "intern") {
+  if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "super_admin")) {
     redirect("/dashboard"); // Only admin/super_admin can view productivity
   }
 
-  const users = await prisma.user.findMany({
-    where: { role: "intern" },
-    select: { email: true, name: true, role: true }
+  const stats = await getAllInternsProductivity().catch(() => []);
+
+  // Compute team-wide break stats
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayBreaksCount = await prisma.breakRequest.count({
+    where: { createdAt: { gte: todayStart } }
+  }).catch(() => 0);
+
+  const approvedBreaks = await prisma.breakRequest.findMany({
+    where: { status: { in: ["approved", "expired"] } }
   }).catch(() => []);
 
-  if (!users.length) {
-    return (
-      <div className="page-stack">
-        <ProductivityView stats={[]} />
-      </div>
-    );
-  }
+  const totalBreaksCount = approvedBreaks.length;
+  const totalBreakMinutes = approvedBreaks.reduce((sum, b) => sum + b.duration, 0);
+  const averageBreakTime = totalBreaksCount > 0 ? Math.round(totalBreakMinutes / totalBreaksCount) : 0;
+  const longestBreak = approvedBreaks.length > 0 ? Math.max(...approvedBreaks.map(b => b.duration)) : 0;
 
-  const [tasks, attendance, reports] = await Promise.all([
-    prisma.task.findMany(),
-    prisma.attendance.findMany(),
-    prisma.report.findMany()
-  ]);
-
-  const stats: ProductivityStat[] = users.map((u) => {
-    // Tasks
-    const userTasks = tasks.filter((t) => t.assignedTo === u.email);
-    const tasks_total = userTasks.length;
-    const tasks_done = userTasks.filter((t) => t.status === "Completed").length;
-    const tasks_in_progress = userTasks.filter((t) => t.status === "In Progress").length;
-    const tasks_pending = userTasks.filter((t) => t.status === "Pending").length;
-    const task_score = tasks_total > 0 ? Math.round((tasks_done / tasks_total) * 100) : 0;
-
-    // Attendance
-    const userAtt = attendance.filter((a) => a.email === u.email);
-    const present = userAtt.filter((a) => a.status === "Present").length;
-    const absent = userAtt.filter((a) => a.status === "Absent").length;
-    const leave = userAtt.filter((a) => a.status === "Leave").length;
-    const total_days = present + absent + leave;
-    const att_score = total_days > 0 ? Math.round((present / total_days) * 100) : 0;
-
-    // Reports
-    const userReports = reports.filter((r) => r.submittedBy === u.email);
-    const reports_submitted = userReports.length;
-    const reports_reviewed = userReports.filter((r) => r.reviewed).length;
-
-    // Overall formula (ts * 0.6 + as * 0.4)
-    let overall = (task_score * 0.6) + (att_score * 0.4);
-    if (tasks_total === 0 && total_days === 0) overall = 0;
-
-    return {
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      tasks_total,
-      tasks_done,
-      tasks_in_progress,
-      tasks_pending,
-      task_score,
-      present,
-      absent,
-      leave,
-      att_score,
-      reports_submitted,
-      reports_reviewed,
-      overall_score: Math.round(overall)
-    };
+  const breakCountByUser: Record<string, { name: string; count: number }> = {};
+  approvedBreaks.forEach(b => {
+    if (!breakCountByUser[b.userEmail]) {
+      breakCountByUser[b.userEmail] = { name: b.userName || b.userEmail.split("@")[0], count: 0 };
+    }
+    breakCountByUser[b.userEmail].count += 1;
   });
 
-  // Sort by overall score descending
-  stats.sort((a, b) => b.overall_score - a.overall_score);
+  const mostActiveUsers = Object.values(breakCountByUser)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  const breakStats = {
+    averageBreakTime,
+    breakRequestsToday: todayBreaksCount,
+    longestBreak,
+    mostActiveUsers
+  };
 
   return (
     <div className="page-stack">
-      <ProductivityView stats={stats} />
+      <ProductivityView stats={stats} breakStats={breakStats} />
     </div>
   );
 }

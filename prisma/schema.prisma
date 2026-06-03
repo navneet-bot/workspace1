@@ -9,13 +9,16 @@ datasource db {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  name        String
-  email       String   @unique
-  password    String
-  role        String   @default("intern") // admin | intern | super_admin
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  username           String?  @unique
+  password           String
+  role               String   @default("intern") // admin | intern | super_admin
   permissions        String   @default("")       // comma-separated
   mustChangePassword Boolean  @default(false)
+  feedbackRating     String   @default("Good")   // Excellent | Good | Average | Needs Improvement
+  feedbackComment    String   @default("")
   createdAt          DateTime @default(now())
 
   @@map("users")
@@ -31,6 +34,7 @@ model Task {
   deadline    String   @default("TBD")
   project     String   @default("")
   createdBy   String?
+  completedAt DateTime?
   createdAt   DateTime @default(now())
 
   @@map("tasks")
@@ -71,10 +75,13 @@ model Candidate {
 }
 
 model Attendance {
-  id          Int      @id @default(autoincrement())
-  email       String?
-  date        String?  // YYYY-MM-DD
-  status      String   @default("Present") // Present | Absent | Leave
+  id                  Int      @id @default(autoincrement())
+  email               String?
+  date                String?  // YYYY-MM-DD
+  status              String   @default("Present") // Present | Absent | Leave
+  breakStartTime      String?
+  breakEndTime        String?
+  totalBreakDuration  Int      @default(0)
 
   @@map("attendance")
 }
@@ -219,5 +226,23 @@ model Tutor {
   updatedAt      DateTime @updatedAt
 
   @@map("tutors")
+}
+
+model BreakRequest {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  userEmail      String    @default("")
+  userName       String    @default("")
+  duration       Int
+  reason         String
+  status         String    @default("pending") // pending | approved | rejected | expired
+  rejectComment  String    @default("")
+  requestedAt    DateTime  @default(now())
+  approvedAt     DateTime?
+  approvedBy     Int?
+  approvedByName String    @default("")
+  createdAt      DateTime  @default(now())
+
+  @@map("break_requests")
 }
 

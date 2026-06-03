@@ -33,7 +33,7 @@ export function SettingsView({
   emailConfig: EmailConfig;
 }) {
   const { addToast } = useUIStore();
-  const isIntern = userRole === "intern";
+  const isIntern = userRole === "intern" || userRole === "tutor";
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
 

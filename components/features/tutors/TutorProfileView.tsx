@@ -59,10 +59,6 @@ interface Tutor {
 
 const PIPELINE_STAGES = [
   "Applied",
-  "Screening",
-  "Interview Scheduled",
-  "Demo Class",
-  "Selected",
   "Onboarded"
 ];
 
@@ -146,7 +142,7 @@ export function TutorProfileView({ tutor: initialTutor }: { tutor: Tutor }) {
   };
 
   const statusColorClass = (status: string) => {
-    if (status === "Selected" || status === "Onboarded") return "text-jj-green bg-jj-green/10 border-jj-green/20";
+    if (status === "Onboarded") return "text-jj-green bg-jj-green/10 border-jj-green/20";
     if (status === "Rejected") return "text-jj-red bg-jj-red/10 border-jj-red/20";
     if (status === "Inactive") return "text-jj-text-muted bg-white/5 border-white/10";
     return "text-jj-accent bg-jj-accent/10 border-jj-accent/20";
@@ -263,7 +259,7 @@ export function TutorProfileView({ tutor: initialTutor }: { tutor: Tutor }) {
                   {/* Stage Name */}
                   <div className="text-left lg:text-center flex-1 lg:flex-none">
                     <div className={`text-[13px] font-bold ${isActive ? "text-jj-accent" : isCompleted ? "text-jj-green" : "text-jj-text-muted"}`}>
-                      {stage === "Interview Scheduled" ? "Interview" : stage}
+                      {stage}
                     </div>
                     {isActive && <div className="text-[11px] text-jj-accent-dim font-medium">Current Stage</div>}
                   </div>
@@ -272,8 +268,8 @@ export function TutorProfileView({ tutor: initialTutor }: { tutor: Tutor }) {
                 {/* Progress bar line (horizontal for large screens, hidden on small screens) */}
                 {idx < PIPELINE_STAGES.length - 1 && (
                   <div className="hidden lg:block absolute h-0.5 bg-jj-border" style={{
-                    width: "calc(16.6% - 32px)",
-                    left: `calc(8.3% + ${idx * 16.6}% + 16px)`,
+                    width: `calc(${100 / PIPELINE_STAGES.length}% - 32px)`,
+                    left: `calc(${50 / PIPELINE_STAGES.length}% + ${idx * (100 / PIPELINE_STAGES.length)}% + 16px)`,
                     zIndex: 0,
                     top: "16px",
                     background: currentStageIndex > idx ? "var(--green)" : "var(--border)"

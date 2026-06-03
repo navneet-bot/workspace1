@@ -64,11 +64,12 @@ export async function dispatchEmail(to: string | string[], subject: string, html
 }
 
 import { buildInternInvitationEmail } from "./templates/intern-invitation";
+import { buildTutorInvitationEmail } from "./templates/tutor-invitation";
 
 // ── Email Service Functions ──
 
 export async function sendInvitationEmail(toEmail: string, name: string, role: string, loginEmail?: string, tempPass?: string) {
-  if (role !== "intern" || !loginEmail || !tempPass) {
+  if ((role !== "intern" && role !== "tutor") || !loginEmail || !tempPass) {
     const html = `
       <div style="font-family:Arial,sans-serif;padding:20px;color:#333;">
         <h2>Hello ${name},</h2>
@@ -79,6 +80,15 @@ export async function sendInvitationEmail(toEmail: string, name: string, role: s
         <p><strong>The Job Jockey Team</strong></p>
       </div>`;
     return dispatchEmail(toEmail, "🎉 Welcome to Job Jockey", html);
+  }
+
+  if (role === "tutor") {
+    const htmlBody = buildTutorInvitationEmail({
+      tutorName: name,
+      tutorEmail: loginEmail,
+      generatedPassword: tempPass,
+    });
+    return dispatchEmail(toEmail, "🎉 Welcome to Job Jockey – Your Tutor Account is Ready", htmlBody);
   }
 
   const htmlBody = buildInternInvitationEmail({

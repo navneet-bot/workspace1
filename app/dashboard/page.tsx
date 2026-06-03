@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { DashboardCharts } from "@/components/features/dashboard/DashboardCharts";
 import { DashboardHeaderActions } from "@/components/features/dashboard/DashboardHeaderActions";
+import { BreakCountdownWidget } from "@/components/features/breaks/BreakCountdownWidget";
 import Link from "next/link";
+import { getInternProductivityDetails } from "@/app/actions/productivity";
+import { CheckCircle, Briefcase, Calendar, BookOpen, Star, ShieldAlert } from "lucide-react";
 
 const COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4"];
 
@@ -41,7 +44,7 @@ function initials(name: string) {
 }
 
 function roleLabel(role: string) {
-  return { admin: "admin", super_admin: "super admin", intern: "intern" }[role as "admin"] || role;
+  return { admin: "admin", super_admin: "super admin", tutor: "tutor", intern: "intern" }[role as "admin"] || role;
 }
 
 export default async function DashboardPage() {
@@ -51,10 +54,10 @@ export default async function DashboardPage() {
   const currentUserName = session?.user?.name || "Intern";
   const permissions = (session?.user as { permissions?: string })?.permissions || "";
   const hasSuperAdminAccess = userRole === "super_admin" && permissions.trim() !== "";
-  const showInternDashboard = userRole === "intern" || (userRole === "super_admin" && !hasSuperAdminAccess);
+  const showInternDashboard = userRole === "intern" || userRole === "tutor" || (userRole === "super_admin" && !hasSuperAdminAccess);
 
   if (showInternDashboard && userEmail) {
-    const [tasks, attendance, groups, notifications] = await Promise.all([
+    const [tasks, attendance, groups, notifications, prodDetails] = await Promise.all([
       prisma.task.findMany({
         where: { assignedTo: userEmail },
         orderBy: { createdAt: "desc" },
@@ -71,7 +74,31 @@ export default async function DashboardPage() {
         },
         orderBy: { createdAt: "desc" },
       }).catch(() => []),
+      getInternProductivityDetails(userEmail),
     ]);
+
+    // Fetch active break directly
+    const activeBreakRes = await prisma.breakRequest.findFirst({
+      where: {
+        userEmail,
+        status: "approved",
+      },
+    });
+
+    let activeBreak = null;
+    if (activeBreakRes && activeBreakRes.approvedAt) {
+      const approvedTime = new Date(activeBreakRes.approvedAt);
+      const endTime = new Date(approvedTime.getTime() + activeBreakRes.duration * 60 * 1000);
+      const now = new Date();
+      const remainingSeconds = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000));
+      if (remainingSeconds > 0) {
+        activeBreak = {
+          duration: activeBreakRes.duration,
+          reason: activeBreakRes.reason,
+          remainingSeconds,
+        };
+      }
+    }
 
     const pending = tasks.filter((task) => task.status === "Pending").length;
     const inProgress = tasks.filter((task) => task.status === "In Progress").length;
@@ -108,6 +135,13 @@ export default async function DashboardPage() {
 
     return (
       <>
+        {activeBreak && (
+          <BreakCountdownWidget
+            initialRemainingSeconds={activeBreak.remainingSeconds}
+            duration={activeBreak.duration}
+            reason={activeBreak.reason}
+          />
+        )}
         <div
           style={{
             background:
@@ -235,77 +269,116 @@ export default async function DashboardPage() {
 
         <div className="charts-row" style={{ marginBottom: "20px" }}>
           <div className="chart-card">
-            <h3 style={{ marginBottom: "16px" }}>📊 My Performance</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: "12.5px",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>Task Completion</span>
-                  <strong style={{ color: "var(--accent)" }}>{taskScore}%</strong>
+            <h3 style={{ marginBottom: "16px", fontFamily: "var(--font-syne)" }}>📊 My Productivity Index</h3>
+            {prodDetails ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Overall Score Circle/Gauge */}
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", background: "var(--surface2)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                  <div style={{ position: "relative", width: "70px", height: "70px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
+                      <circle cx="35" cy="35" r="30" stroke="rgba(150, 150, 150, 0.1)" strokeWidth="5" fill="transparent" />
+                      <circle 
+                        cx="35" 
+                        cy="35" 
+                        r="30" 
+                        stroke={prodDetails.overall >= 80 ? "var(--green)" : prodDetails.overall >= 60 ? "var(--accent)" : "var(--red)"} 
+                        strokeWidth="5" 
+                        fill="transparent" 
+                        strokeDasharray={2 * Math.PI * 30}
+                        strokeDashoffset={2 * Math.PI * 30 * (1 - prodDetails.overall / 100)}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 800 }}>
+                      {prodDetails.overall}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, fontFamily: "var(--font-syne)" }}>
+                      Grade {prodDetails.overall >= 90 ? "A+" : prodDetails.overall >= 80 ? "A" : prodDetails.overall >= 70 ? "B" : prodDetails.overall >= 60 ? "C" : prodDetails.overall >= 50 ? "D" : "F"}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      Multi-Factor Productivity Score
+                    </div>
+                  </div>
                 </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${taskScore}%` }} />
+
+                {/* Score Breakdown summary */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {/* Tasks */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><CheckCircle size={12} style={{ color: "var(--blue)" }} /> Tasks (30%)</span>
+                      <strong style={{ color: "var(--blue)" }}>{prodDetails.tasks.score}%</strong>
+                    </div>
+                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${prodDetails.tasks.score}%`, background: "var(--blue)" }} /></div>
+                  </div>
+
+                  {/* Projects */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Briefcase size={12} style={{ color: "var(--accent)" }} /> Projects (20%)</span>
+                      <strong style={{ color: "var(--accent)" }}>{prodDetails.projects.score}%</strong>
+                    </div>
+                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${prodDetails.projects.score}%`, background: "var(--accent)" }} /></div>
+                  </div>
+
+                  {/* Attendance */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Calendar size={12} style={{ color: "var(--green)" }} /> Attendance (20%)</span>
+                      <strong style={{ color: "var(--green)" }}>{prodDetails.attendance.score}%</strong>
+                    </div>
+                    <div className="progress-bar"><div className="progress-fill green" style={{ width: `${prodDetails.attendance.score}%` }} /></div>
+                  </div>
+
+                  {/* Work Logs */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><BookOpen size={12} style={{ color: "var(--purple)" }} /> Work Logs (10%)</span>
+                      <strong style={{ color: "var(--purple)" }}>{prodDetails.workLogs.score}%</strong>
+                    </div>
+                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${prodDetails.workLogs.score}%`, background: "var(--purple)" }} /></div>
+                  </div>
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
-                  {completed}/{total} tasks done
+
+                {/* Feedback Comment if exists */}
+                {prodDetails.feedback.comment && (
+                  <div style={{ background: "rgba(139,92,246,0.05)", border: "1px dashed rgba(139,92,246,0.25)", padding: "10px 12px", borderRadius: "8px", fontSize: "11.5px", color: "var(--text-soft)" }}>
+                    <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", marginBottom: "3px", color: "var(--purple)" }}>
+                      <Star size={12} fill="currentColor" /> Manager Review
+                    </div>
+                    &ldquo;{prodDetails.feedback.comment}&rdquo;
+                  </div>
+                )}
+
+                {/* Insights summary */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid var(--border)", paddingTop: "12px", marginTop: "4px" }}>
+                  <div style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <ShieldAlert size={12} style={{ color: "var(--blue)" }} /> Personal Insights
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "100px", overflowY: "auto" }}>
+                    {(() => {
+                      const ins: string[] = [];
+                      const b = prodDetails;
+                      if (b.tasks.overdue > 0) ins.push(`⚠️ You have ${b.tasks.overdue} overdue task(s).`);
+                      if (b.attendance.lateCount > 2) ins.push(`⏰ Late check-ins detected (${b.attendance.lateCount} times).`);
+                      if (b.breaks.excessiveFlags.length > 0) b.breaks.excessiveFlags.forEach((f: string) => ins.push(`☕ Wellness Alert: ${f}`));
+                      if (b.workLogs.count > 0 && b.workLogs.avgWordCount < 8) ins.push(`📝 Keep work logs detailed (avg ${Math.round(b.workLogs.avgWordCount)} words).`);
+                      if (b.tasks.completed > 0 && b.tasks.avgCompletionHours > 0 && b.tasks.avgCompletionHours < 24) ins.push(`⚡ Fast learner: tasks completed in under 24 hrs.`);
+                      if (ins.length === 0) ins.push(`✅ Performing steadily across all metrics.`);
+                      return ins.map((item, idx) => (
+                        <div key={idx} style={{ fontSize: "11px", padding: "6px 8px", borderRadius: "6px", background: "var(--surface3)", border: "1px solid var(--border)", color: "var(--text-soft)" }}>
+                          {item}
+                        </div>
+                      ));
+                    })()}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: "12.5px",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>Attendance Rate</span>
-                  <strong style={{ color: "var(--green)" }}>{attendanceScore}%</strong>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill green" style={{ width: `${attendanceScore}%` }} />
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
-                  {present} present · {absent} absent · {leave} leave
-                </div>
-              </div>
-              <div
-                style={{
-                  background: "var(--surface2)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  padding: "14px",
-                  textAlign: "center",
-                  marginTop: "4px",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "30px",
-                    fontWeight: 800,
-                    fontFamily: "Syne, sans-serif",
-                    color:
-                      overallScore >= 80
-                        ? "var(--green)"
-                        : overallScore >= 60
-                          ? "var(--accent)"
-                          : "var(--red)",
-                  }}
-                >
-                  {overallScore}
-                  <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-muted)" }}>/100</span>
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>
-                  Overall Score
-                </div>
-              </div>
-            </div>
+            ) : (
+              <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Calculating your productivity index...</div>
+            )}
           </div>
           <div className="chart-card">
             <h3 style={{ marginBottom: "16px" }}>👥 My Groups</h3>
@@ -371,19 +444,29 @@ export default async function DashboardPage() {
     );
   }
 
-  const [users, projects, attendance, tasks] = await Promise.all([
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [users, projects, attendance, tasks, todayBreaks] = await Promise.all([
     prisma.user.findMany({ where: { role: { not: "admin" } } }).catch(() => []),
     prisma.project.findMany().catch(() => []),
     prisma.attendance.findMany({
       where: { date: new Date().toISOString().split("T")[0], status: "Present" },
     }).catch(() => []),
     prisma.task.findMany({ orderBy: { createdAt: "desc" } }).catch(() => []),
+    prisma.breakRequest.findMany({
+      where: { createdAt: { gte: todayStart } }
+    }).catch(() => [])
   ]);
 
   const totalInterns = users.filter((user) => user.role === "intern").length;
   const tasksCompleted = tasks.filter((task) => task.status === "Completed").length;
   const tasksPending = tasks.filter((task) => task.status === "Pending").length;
   const tasksInProgress = tasks.filter((task) => task.status === "In Progress").length;
+
+  const breaksPending = todayBreaks.filter(b => b.status === "pending").length;
+  const breaksApproved = todayBreaks.filter(b => b.status === "approved" || b.status === "expired").length;
+  const breaksRejected = todayBreaks.filter(b => b.status === "rejected").length;
 
   return (
     <>
@@ -427,6 +510,26 @@ export default async function DashboardPage() {
       </div>
 
       <DashboardCharts pending={tasksPending} inProgress={tasksInProgress} completed={tasksCompleted} />
+
+      <div className="table-card" style={{ marginBottom: "20px", padding: "20px" }}>
+        <h3 style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+          ☕ Today&apos;s Break Requests
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "16px" }}>
+          <div style={{ background: "rgba(245,158,11,0.08)", padding: "16px", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.2)", textAlign: "center" }}>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "var(--accent)" }}>{breaksPending}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", fontWeight: 600 }}>Pending</div>
+          </div>
+          <div style={{ background: "rgba(16,185,129,0.08)", padding: "16px", borderRadius: "12px", border: "1px solid rgba(16,185,129,0.2)", textAlign: "center" }}>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "var(--green)" }}>{breaksApproved}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", fontWeight: 600 }}>Approved / Active</div>
+          </div>
+          <div style={{ background: "rgba(239,68,68,0.08)", padding: "16px", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.2)", textAlign: "center" }}>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "var(--red)" }}>{breaksRejected}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px", fontWeight: 600 }}>Rejected</div>
+          </div>
+        </div>
+      </div>
 
       <div className="table-card">
         <div className="table-card-header">

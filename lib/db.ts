@@ -22,4 +22,5 @@ const poolConfig = { connectionString }
 const adapter = new PrismaNeon(poolConfig)
 const prisma = new PrismaClient({ adapter })
 
-export default prisma
+// Touched to reload the Prisma Client with updated schema
+export default prisma;

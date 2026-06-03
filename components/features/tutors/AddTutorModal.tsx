@@ -205,14 +205,6 @@ export function AddTutorModal({ isOpen, onClose, onAdd }: AddTutorModalProps) {
                 </div>
               </div>
 
-              <div className="field">
-                <label>Profile Photo URL</label>
-                <input 
-                  placeholder="https://..."
-                  value={formData.profilePhoto}
-                  onChange={e => setFormData({...formData, profilePhoto: e.target.value})}
-                />
-              </div>
             </div>
 
             {/* Section 2: Academic Info */}
@@ -258,16 +250,6 @@ export function AddTutorModal({ isOpen, onClose, onAdd }: AddTutorModalProps) {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="field w-1/2">
-                  <label>Graduation Year</label>
-                  <input 
-                    placeholder="e.g. 2023"
-                    value={formData.gradYear}
-                    onChange={e => setFormData({...formData, gradYear: e.target.value})}
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Section 3: Teaching Info */}
@@ -367,30 +349,6 @@ export function AddTutorModal({ isOpen, onClose, onAdd }: AddTutorModalProps) {
                     value={formData.resumeUrl}
                     onChange={e => setFormData({...formData, resumeUrl: e.target.value})}
                   />
-                </div>
-              </div>
-            </div>
-
-            {/* Recruitment Initial Status */}
-            <div>
-              <h4 className="text-[12.5px] font-bold text-jj-accent uppercase tracking-wider mb-2 border-b border-jj-border pb-1">
-                ⚙️ Status
-              </h4>
-              <div className="form-row">
-                <div className="field w-1/2">
-                  <label>Recruitment Status</label>
-                  <select 
-                    value={formData.status}
-                    onChange={e => setFormData({...formData, status: e.target.value})}
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="Screening">Screening</option>
-                    <option value="Interview Scheduled">Interview Scheduled</option>
-                    <option value="Selected">Selected</option>
-                    <option value="Onboarded">Onboarded</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
                 </div>
               </div>
             </div>

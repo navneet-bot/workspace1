@@ -25,8 +25,9 @@ import { useUIStore } from "@/hooks/useUIStore";
 interface NavItem {
   id: string;
   name: string;
-  href: string;
+  href?: string;
   icon: any;
+  subItems?: { id: string; name: string; href: string }[];
 }
 
 interface NavSection {
@@ -178,7 +179,7 @@ export function Sidebar({ userRole }: { userRole?: string }) {
   };
 
   const roleLabel = (r: string) => {
-    return { admin: "admin", super_admin: "super admin", intern: "intern" }[r] || r;
+    return { admin: "admin", super_admin: "super admin", tutor: "tutor", intern: "intern" }[r] || r;
   };
 
   return (
@@ -211,11 +212,51 @@ export function Sidebar({ userRole }: { userRole?: string }) {
           <div key={sec.section}>
             <div className="nav-section-label">{sec.section}</div>
             {sec.items.map((item) => {
+              if (item.subItems) {
+                const isAnySubActive = item.subItems.some((sub) => pathname === sub.href);
+                return (
+                  <div key={item.id} style={{ display: "flex", flexDirection: "column" }}>
+                    <div
+                      className={`nav-item ${isAnySubActive ? "active" : ""}`}
+                      style={{ cursor: "default" }}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.name}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", marginLeft: "14px", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: "10px", gap: "2px", marginTop: "2px", marginBottom: "4px" }}>
+                      {item.subItems.map((sub) => {
+                        const isSubActive = pathname === sub.href;
+                        return (
+                          <Link
+                            key={sub.id}
+                            href={sub.href}
+                            onClick={() => setMobileSidebarOpen(false)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              fontSize: "12.5px",
+                              color: isSubActive ? "var(--accent)" : "var(--text-soft)",
+                              background: isSubActive ? "var(--accent-dim)" : "transparent",
+                              fontWeight: isSubActive ? 600 : 500,
+                              textDecoration: "none"
+                            }}
+                          >
+                            {sub.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.id}
-                  href={item.href}
+                  href={item.href || "#"}
                   onClick={() => setMobileSidebarOpen(false)}
                   className={`nav-item ${isActive ? "active" : ""}`}
                 >

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUIStore } from "@/hooks/useUIStore";
-import { promoteUser, demoteUser, deleteUser, updateUserPermissions } from "@/app/actions/users";
+import { promoteUser, demoteUser, deleteUser, updateUserPermissions, updateUserRole } from "@/app/actions/users";
 import { Trash2 } from "lucide-react";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -32,6 +32,11 @@ const ALL_PERMISSIONS = [
   { key: "send_notifications", label: "Send Notifications", desc: "Can send notifications to team", icon: "🔔" },
   { key: "view_productivity", label: "View Productivity", desc: "Can view productivity reports", icon: "📊" },
   { key: "manage_projects", label: "Manage Projects", desc: "Can create and update projects", icon: "🚀" },
+  { key: "request_break", label: "Request Break", desc: "Can request short breaks during working hours", icon: "☕" },
+  { key: "approve_break", label: "Approve Break", desc: "Can approve intern break requests", icon: "✅" },
+  { key: "reject_break", label: "Reject Break", desc: "Can reject intern break requests", icon: "❌" },
+  { key: "view_break_requests", label: "View Break Requests", desc: "Can view the list and logs of break requests", icon: "📋" },
+  { key: "manage_break_requests", label: "Manage Break Requests", desc: "Full control over break request configuration and actions", icon: "⚙️" },
 ];
 
 export function UsersView({ initialUsers }: { initialUsers: User[] }) {
@@ -49,6 +54,18 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
     setSelectedPerms(u.permissions ? u.permissions.split(",").map((p) => p.trim()) : []);
     setPermMode("promote");
     setIsPermModalOpen(true);
+  };
+
+  const handleUpdateRole = async (id: number, role: string, name: string) => {
+    const roleLabel = role === "super_admin" ? "Super Admin" : role === "tutor" ? "Tutor" : "Intern";
+    if (!confirm(`Are you sure you want to change ${name}'s role to ${roleLabel}?`)) return;
+    const res = await updateUserRole(id, role);
+    if (res.success) {
+      addToast(`${name}'s role updated to ${roleLabel}`, "success");
+      setUsers(users.map((u) => (u.id === id ? { ...u, role, permissions: role === "super_admin" ? u.permissions : "" } : u)));
+    } else {
+      addToast(res.error || "Failed to update role", "error");
+    }
   };
 
   const handleDemote = async (id: number, name: string) => {
@@ -125,6 +142,8 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
       return <span className="badge badge-red">admin</span>;
     if (role === "super_admin")
       return <span className="badge badge-purple">super admin</span>;
+    if (role === "tutor")
+      return <span className="badge badge-green">tutor</span>;
     return <span className="badge badge-blue">intern</span>;
   };
 
@@ -186,12 +205,37 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
                     {u.role !== "admin" ? (
                       <>
                         {u.role === "intern" && (
-                          <button
-                            onClick={() => handlePromote(u)}
-                            className="action-btn action-approve"
-                          >
-                            ⭐ Super Admin
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handlePromote(u)}
+                              className="action-btn action-approve"
+                            >
+                              ⭐ Super Admin
+                            </button>
+                            <button
+                              onClick={() => handleUpdateRole(u.id, "tutor", u.name)}
+                              className="action-btn action-edit"
+                              style={{ background: "rgba(16,185,129,0.15)", color: "var(--green)", border: "1px solid rgba(16,185,129,0.3)" }}
+                            >
+                              👨‍🏫 Tutor
+                            </button>
+                          </>
+                        )}
+                        {u.role === "tutor" && (
+                          <>
+                            <button
+                              onClick={() => handlePromote(u)}
+                              className="action-btn action-approve"
+                            >
+                              ⭐ Super Admin
+                            </button>
+                            <button
+                              onClick={() => handleUpdateRole(u.id, "intern", u.name)}
+                              className="action-btn action-edit"
+                            >
+                              🎓 Intern
+                            </button>
+                          </>
                         )}
                         {u.role === "super_admin" && (
                           <>
@@ -207,10 +251,17 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
                               🔧 Permissions
                             </button>
                             <button
-                              onClick={() => handleDemote(u.id, u.name)}
+                              onClick={() => handleUpdateRole(u.id, "tutor", u.name)}
+                              className="action-btn action-edit"
+                              style={{ background: "rgba(16,185,129,0.15)", color: "var(--green)", border: "1px solid rgba(16,185,129,0.3)" }}
+                            >
+                              👨‍🏫 Tutor
+                            </button>
+                            <button
+                              onClick={() => handleUpdateRole(u.id, "intern", u.name)}
                               className="action-btn action-edit"
                             >
-                              ↓ Intern
+                              🎓 Intern
                             </button>
                           </>
                         )}
@@ -256,6 +307,16 @@ export function UsersView({ initialUsers }: { initialUsers: User[] }) {
               <li>Permissions set by Admin</li>
               <li>Click 🔧 to customize</li>
               <li>Can vary per user</li>
+            </ul>
+          </div>
+          <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 12, padding: 18, flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>👨‍🏫</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--green)" }}>Tutor</div>
+            <ul style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 10, paddingLeft: 16, lineHeight: 2.2 }}>
+              <li>Onboarded via recruitment</li>
+              <li>Access student dashboard</li>
+              <li>Manage students & assignments</li>
+              <li>Chat with team</li>
             </ul>
           </div>
           <div style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 12, padding: 18, flex: 1, minWidth: 200 }}>

@@ -64,6 +64,7 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
   const { addToast } = useUIStore();
   const { data: session } = useSession();
   const [tutors, setTutors] = useState(initialTutors);
+  const [activeTab, setActiveTab] = useState<"applicants" | "applications">("applicants");
   
   // Modals state
   const [isAddModalOpen, setAddModalOpen] = useState(false);
@@ -98,6 +99,9 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
   const hasPerm = (key: string) => role === "admin" || permissions.split(",").map((p: string) => p.trim()).includes(key);
 
   const filtered = tutors.filter((t) => {
+    if (activeTab === "applicants" && t.status === "Onboarded") return false;
+    if (activeTab === "applications" && t.status !== "Onboarded") return false;
+
     if (statusFilter && t.status !== statusFilter) return false;
     if (subjectFilter && !t.subject.toLowerCase().includes(subjectFilter.toLowerCase())) return false;
     if (experienceFilter && !t.experience.toLowerCase().includes(experienceFilter.toLowerCase())) return false;
@@ -202,9 +206,8 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
   };
 
   const statusBadge = (status: string) => {
-    if (status === "Selected" || status === "Onboarded") return <span className="badge badge-green">{status}</span>;
+    if (status === "Onboarded") return <span className="badge badge-green">{status}</span>;
     if (status === "Rejected") return <span className="badge badge-red">{status}</span>;
-    if (status === "Interview Scheduled" || status === "Screening") return <span className="badge badge-purple">{status}</span>;
     if (status === "Inactive") return <span className="badge badge-gray">{status}</span>;
     return <span className="badge badge-amber">{status}</span>;
   };
@@ -405,7 +408,45 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
     <div className="table-card">
       <div className="table-card-header" style={{ flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <h3 id="tutorsTabTitle">👨‍🏫 Tutor Recruitment Pipeline</h3>
+          <h3 id="tutorsTabTitle">
+            {activeTab === "applicants" ? "Tutor Applicants" : "Onboarded Tutors"}
+          </h3>
+          <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
+            <button
+              id="tabApplicants"
+              onClick={() => { setActiveTab("applicants"); setStatusFilter(""); }}
+              style={{
+                padding: "5px 14px",
+                borderRadius: "6px",
+                border: "none",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all .2s",
+                background: activeTab === "applicants" ? "var(--accent)" : "transparent",
+                color: activeTab === "applicants" ? "#000" : "var(--text-muted)"
+              }}
+            >
+              📋 Applicants
+            </button>
+            <button
+              id="tabApplications"
+              onClick={() => { setActiveTab("applications"); setStatusFilter(""); }}
+              style={{
+                padding: "5px 14px",
+                borderRadius: "6px",
+                border: "none",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all .2s",
+                background: activeTab === "applications" ? "var(--accent)" : "transparent",
+                color: activeTab === "applications" ? "#000" : "var(--text-muted)"
+              }}
+            >
+              ✅ Onboarded
+            </button>
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -662,13 +703,7 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
         
         {hasPerm("manage_tutor_interviews") && (
           <>
-            <button onClick={() => bulkStatusUpdate("Interview Scheduled")} className="action-btn action-approve">
-              Invite to Interview
-            </button>
-            <button onClick={() => bulkStatusUpdate("Selected")} className="action-btn action-approve" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>
-              Select Selected
-            </button>
-            <button onClick={() => bulkStatusUpdate("Onboarded")} className="action-btn action-approve" style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6" }}>
+            <button onClick={() => bulkStatusUpdate("Onboarded")} className="action-btn action-approve" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>
               Onboard Selected
             </button>
           </>
@@ -693,20 +728,18 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
           style={{ flex: "1 1 200px" }}
         />
         
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="filter-select"
-        >
-          <option value="">All Statuses</option>
-          <option value="Applied">Applied</option>
-          <option value="Screening">Screening</option>
-          <option value="Interview Scheduled">Interview Scheduled</option>
-          <option value="Selected">Selected</option>
-          <option value="Onboarded">Onboarded</option>
-          <option value="Rejected">Rejected</option>
-          <option value="Inactive">Inactive</option>
-        </select>
+        {activeTab === "applicants" && (
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="">All Statuses</option>
+            <option value="Applied">Applied</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        )}
 
         <select 
           value={modeFilter}
@@ -768,7 +801,7 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={10} style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
-                  No tutors found — click Add Tutor or Upload CSV to start!
+                  No {activeTab === "applicants" ? "applicants" : "onboarded tutors"} found — click Add Tutor or Upload CSV to start!
                 </td>
               </tr>
             ) : (
@@ -830,10 +863,10 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
 
                       {hasPerm("manage_tutor_interviews") && t.status === "Applied" && (
                         <button
-                          onClick={() => handleUpdateStatus(t.id, "Screening")}
+                          onClick={() => handleUpdateStatus(t.id, "Onboarded")}
                           className="action-btn action-approve flex items-center justify-center"
                           style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                          title="Screen Tutor"
+                          title="Onboard Tutor"
                         >
                           <Check size={12} className="stroke-[2.5]" />
                         </button>
