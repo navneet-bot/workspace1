@@ -139,13 +139,13 @@ export async function sendGroupMessage(groupId: number, senderEmail: string, mes
       else if (message.length > 80) preview = message.slice(0, 80) + "...";
 
       for (const email of members) {
-        if (email && typeof email === "string" && email.toLowerCase().trim() !== senderEmail.toLowerCase().trim()) {
+        if (email !== senderEmail) {
           await prisma.notification.create({
             data: {
               title: `💬 ${senderUser.name} in ${group.name}`,
               body: preview,
               icon: "💬",
-              targetEmail: email.trim()
+              targetEmail: email
             }
           });
         }
@@ -204,9 +204,25 @@ export async function fetchConversations(userId: number, userEmail: string) {
       orderBy: { sentAt: "asc" }
     });
 
-    const groupMsgs = await prisma.groupMessage.findMany({
-      orderBy: { sentAt: "asc" }
-    });
+    // Determine which groups the user belongs to
+    const allGroups = await prisma.group.findMany();
+    const userGroupIds = allGroups
+      .filter(g => {
+        try {
+          const members: string[] = JSON.parse(g.members || "[]");
+          return members.includes(userEmail);
+        } catch {
+          return false;
+        }
+      })
+      .map(g => g.id);
+
+    const groupMsgs = userGroupIds.length > 0
+      ? await prisma.groupMessage.findMany({
+          where: { groupId: { in: userGroupIds } },
+          orderBy: { sentAt: "asc" }
+        })
+      : [];
 
     const conversations: Record<string, { unreadCount: number, lastMessageAt: string, lastMessagePreview: string }> = {};
 
@@ -242,7 +258,7 @@ export async function fetchConversations(userId: number, userEmail: string) {
         readBy = JSON.parse(msg.readBy || "[]");
       } catch {}
       
-      if (msg.sender && msg.sender.toLowerCase().trim() !== userEmail.toLowerCase().trim() && !readBy.includes(userId)) {
+      if (msg.sender !== userEmail && !readBy.includes(userId)) {
         conversations[contactId].unreadCount++;
       }
     }

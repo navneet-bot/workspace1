@@ -31,9 +31,19 @@ export default async function ChatPage({
     orderBy: { name: "asc" }
   }).catch(() => []);
 
-  const groups = await prisma.group.findMany({
+  const allGroups = await prisma.group.findMany({
     orderBy: { name: "asc" }
   }).catch(() => []);
+
+  // Only show groups where the current user is a member
+  const groups = allGroups.filter(g => {
+    try {
+      const members: string[] = JSON.parse(g.members || "[]");
+      return members.includes(currentUser.email);
+    } catch {
+      return false;
+    }
+  });
 
   // Serialize group dates and convert structure
   const serializedGroups = groups.map(g => ({
