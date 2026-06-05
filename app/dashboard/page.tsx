@@ -228,7 +228,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="stats-grid" style={{ marginBottom: "20px" }}>
+        <div className="stats-grid" style={{ marginBottom: "20px", gridTemplateColumns: "repeat(4, 1fr)" }}>
           <Link href="/dashboard/mytasks" style={{ textDecoration: "none", color: "inherit" }}>
             <div className="stat-card amber" style={{ cursor: "pointer" }}>
               <div className="stat-icon amber">
@@ -460,6 +460,7 @@ export default async function DashboardPage() {
   ]);
 
   const totalInterns = users.filter((user) => user.role === "intern").length;
+  const totalTutors = users.filter((user) => user.role === "tutor").length;
   const tasksCompleted = tasks.filter((task) => task.status === "Completed").length;
   const tasksPending = tasks.filter((task) => task.status === "Pending").length;
   const tasksInProgress = tasks.filter((task) => task.status === "In Progress").length;
@@ -478,6 +479,15 @@ export default async function DashboardPage() {
             </div>
             <div className="stat-value">{totalInterns}</div>
             <div className="stat-label">Active Interns</div>
+          </div>
+        </Link>
+        <Link href="/dashboard/users" style={{ textDecoration: "none", color: "inherit" }}>
+          <div className="stat-card cyan" style={{ cursor: "pointer" }}>
+            <div className="stat-icon cyan">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><polyline points="17 11 19 13 23 9" /></svg>
+            </div>
+            <div className="stat-value">{totalTutors}</div>
+            <div className="stat-label">Active Tutors</div>
           </div>
         </Link>
         <Link href="/dashboard/tasks" style={{ textDecoration: "none", color: "inherit" }}>

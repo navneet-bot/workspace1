@@ -9,27 +9,38 @@ export async function submitReport(data: {
   fileName: string;
   fileData: string;
   submittedBy: string;
+  recipients?: string[];
 }) {
   try {
-    const report = await prisma.report.create({ data });
+    let targetEmails = data.recipients;
+    if (!targetEmails || targetEmails.length === 0) {
+      // Fallback: Fetch all admin and super admin users
+      const admins = await prisma.user.findMany({
+        where: {
+          role: { in: ["admin", "super_admin", "tutor"] }
+        }
+      });
+      targetEmails = admins.map(a => a.email).filter(Boolean) as string[];
+    }
 
-    // Fetch all admin and super admin users
-    const admins = await prisma.user.findMany({
-      where: {
-        role: { in: ["admin", "super_admin"] }
-      }
+    const { recipients, ...reportData } = data;
+    const report = await prisma.report.create({ 
+      data: {
+        ...reportData,
+        submittedTo: JSON.stringify(targetEmails)
+      } 
     });
 
     const senderName = data.submittedBy ? data.submittedBy.split("@")[0] : "Intern";
 
-    // Create notifications for all admins
-    for (const admin of admins) {
+    // Create notifications for selected users
+    for (const email of targetEmails) {
       await prisma.notification.create({
         data: {
           title: `📄 New Report from ${senderName}`,
           body: `Task: ${data.title}.${data.description ? ` Details: ${data.description}` : ""}`,
           icon: "📄",
-          targetEmail: admin.email
+          targetEmail: email
         }
       });
     }

@@ -12,6 +12,7 @@ interface Report {
   fileName: string;
   fileData: string;
   submittedBy: string | null;
+  submittedTo?: string;
   reviewed: boolean;
   submittedAt: Date;
 }
@@ -20,10 +21,12 @@ export function ReportsView({
   reports,
   currentUserEmail,
   canManage,
+  reviewers,
 }: {
   reports: Report[];
   currentUserEmail: string;
   canManage: boolean;
+  reviewers?: { name: string | null; email: string | null; role: string }[];
 }) {
   const { addToast } = useUIStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +37,7 @@ export function ReportsView({
   const [fileName, setFileName] = useState("");
   const [fileData, setFileData] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedReviewers, setSelectedReviewers] = useState<string[]>([]);
 
   // Edit State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
@@ -74,6 +78,7 @@ export function ReportsView({
       fileName,
       fileData,
       submittedBy: currentUserEmail,
+      recipients: selectedReviewers.length > 0 ? selectedReviewers : undefined,
     });
     setLoading(false);
 
@@ -199,58 +204,90 @@ export function ReportsView({
 
   return (
     <div className="page-stack">
-      <div className="report-form">
-        <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "18px" }}>
-          Submit Report
-        </h3>
-        <div className="field">
-          <label>Task Title</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What task are you reporting on?"
-          />
-        </div>
-
-        <div className="field">
-          <label>Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe what you worked on..."
-            rows={3}
-          />
-        </div>
-
-        <div className="field">
-          <label>
-            Attach File <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(any type — PDF, image, doc, zip…)</span>
-          </label>
-          <label style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px", background: "var(--surface2)", border: "1.5px dashed var(--border)", borderRadius: "10px", padding: "12px 18px", transition: "border-color .2s" }}>
-            <span style={{ fontSize: "20px" }}>📎</span>
-            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-              {fileName ? "File selected" : "Click to choose file or drop here"}
-            </span>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
-          </label>
-          {fileName && (
-            <div style={{ marginTop: "8px", padding: "8px 12px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", fontSize: "12.5px", color: "var(--green)", display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>✅</span><span>{fileName}</span>
-              <button onClick={clearFile} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px" }}>✕</button>
+      {!canManage && (
+        <>
+          <div className="report-form">
+            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "18px" }}>
+              Submit Report
+            </h3>
+            <div className="field">
+              <label>Task Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="What task are you reporting on?"
+              />
             </div>
-          )}
-        </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="btn-sm btn-accent disabled:opacity-70"
-        >
-          {loading ? "Submitting..." : "Submit Report"}
-        </button>
-      </div>
-      <div style={{ height: 20 }} />
+            <div className="field">
+              <label>Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe what you worked on..."
+                rows={3}
+              />
+            </div>
+
+            <div className="field">
+              <label>
+                Attach File <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(any type — PDF, image, doc, zip…)</span>
+              </label>
+              <label style={{ cursor: "pointer", display: "flex", flexDirection: "row", width: "100%", alignItems: "center", justifyContent: "center", gap: "10px", background: "var(--surface2)", border: "1.5px dashed var(--border)", borderRadius: "10px", padding: "14px 18px", transition: "border-color .2s" }}>
+                <span style={{ fontSize: "20px" }}>📎</span>
+                <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                  {fileName ? "File selected" : "Click to choose file or drop here"}
+                </span>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
+              </label>
+              {fileName && (
+                <div style={{ marginTop: "8px", padding: "8px 12px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", fontSize: "12.5px", color: "var(--green)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>✅</span><span>{fileName}</span>
+                  <button onClick={clearFile} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px" }}>✕</button>
+                </div>
+              )}
+            </div>
+
+            {reviewers && reviewers.length > 0 && (
+              <div className="field">
+                <label>Submit To (Select Reviewers)</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "4px" }}>
+                  {reviewers.map(r => {
+                    if (!r.email) return null;
+                    const isSelected = selectedReviewers.includes(r.email);
+                    return (
+                      <label key={r.email} style={{ display: "flex", alignItems: "center", gap: "6px", background: isSelected ? "rgba(245,158,11,0.15)" : "var(--surface2)", border: `1px solid ${isSelected ? "var(--accent)" : "var(--border)"}`, padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12.5px", transition: "all .2s" }}>
+                        <input 
+                          type="checkbox" 
+                          style={{ width: "14px", height: "14px", accentColor: "var(--accent)", margin: 0, cursor: "pointer" }}
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedReviewers([...selectedReviewers, r.email!]);
+                            else setSelectedReviewers(selectedReviewers.filter(e => e !== r.email));
+                          }}
+                        />
+                        <span style={{ fontWeight: 500 }}>{r.name || r.email.split("@")[0]}</span>
+                        <span style={{ fontSize: "10px", padding: "2px 6px", background: "rgba(255,255,255,0.05)", borderRadius: "4px", textTransform: "uppercase" }}>{r.role}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px" }}>If none selected, all admins will be notified by default.</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="btn-sm btn-accent disabled:opacity-70"
+            >
+              {loading ? "Submitting..." : "Submit Report"}
+            </button>
+          </div>
+          <div style={{ height: 20 }} />
+        </>
+      )}
 
       <div className="table-card">
         <div className="table-card-header">
@@ -265,11 +302,12 @@ export function ReportsView({
           </button>
         </div>
 
-        <div className="table-scroll">
+        <div className="table-scroll" style={{ maxHeight: "400px", overflowY: "scroll" }}>
           <table>
             <thead>
               <tr>
                 <th>Submitted By</th>
+                <th>Submitted To</th>
                 <th>Task</th>
                 <th>Date</th>
                 <th>Description</th>
@@ -281,7 +319,7 @@ export function ReportsView({
             <tbody>
               {reportsList.length === 0 ? (
                 <tr>
-                  <td colSpan={canManage ? 6 : 5} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
+                  <td colSpan={canManage ? 7 : 6} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
                     No reports yet
                   </td>
                 </tr>
@@ -292,6 +330,17 @@ export function ReportsView({
                       <strong>{r.submittedBy || "Unknown"}</strong>
                       <br />
                       <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{r.submittedBy || ""}</span>
+                    </td>
+                    <td>
+                      {(() => {
+                        try {
+                          const emails = r.submittedTo ? JSON.parse(r.submittedTo) : [];
+                          if (!Array.isArray(emails) || emails.length === 0) return <span style={{color: "var(--text-muted)"}}>All Admins</span>;
+                          return emails.map((email: string) => <div key={email} style={{fontSize: "12px", color: "var(--text)"}}>{email.split("@")[0]}</div>);
+                        } catch {
+                          return <span style={{color: "var(--text-muted)"}}>All Admins</span>;
+                        }
+                      })()}
                     </td>
                     <td>{r.title}</td>
                     <td>

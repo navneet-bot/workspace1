@@ -95,6 +95,7 @@ model Report {
   fileName    String   @default("")
   fileData    String   @default("")
   submittedBy String?
+  submittedTo String   @default("")
   reviewed    Boolean  @default(false)
   submittedAt DateTime @default(now())
 

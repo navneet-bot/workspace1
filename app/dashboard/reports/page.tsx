@@ -21,12 +21,18 @@ export default async function ReportsPage() {
     orderBy: { submittedAt: "desc" }
   }).catch(() => []);
 
+  const potentialReviewers = await prisma.user.findMany({
+    where: { role: { in: ["admin", "super_admin", "tutor"] } },
+    select: { name: true, email: true, role: true }
+  }).catch(() => []);
+
   return (
     <div className="page-stack">
       <ReportsView 
         reports={reports} 
         currentUserEmail={session.user.email} 
         canManage={canManage} 
+        reviewers={potentialReviewers as any}
       />
     </div>
   );

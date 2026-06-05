@@ -50,7 +50,7 @@ body.light-mode {
 }
 
 @layer components {
-  .page-stack{@apply flex h-full flex-col gap-5}
+  .page-stack{@apply flex min-h-full flex-col gap-5}
   .surface-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
   .surface-panel-muted{background:var(--surface2);border:1px solid var(--border);border-radius:12px}
   .surface-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap}
@@ -228,13 +228,13 @@ h1,h2,h3,h4{font-family:'Syne',sans-serif}
 .section.active{display:block}
 
 /* ── STAT CARDS ── */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;min-width:0}
 .stat-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.14)}
 .stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--radius) var(--radius) 0 0}
-.stat-card.amber::after{background:var(--accent)}.stat-card.green::after{background:var(--green)}.stat-card.blue::after{background:var(--blue)}.stat-card.purple::after{background:var(--purple)}
+.stat-card.amber::after{background:var(--accent)}.stat-card.green::after{background:var(--green)}.stat-card.blue::after{background:var(--blue)}.stat-card.purple::after{background:var(--purple)}.stat-card.cyan::after{background:#06b6d4}
 .stat-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-.stat-icon.amber{background:rgba(245,158,11,0.12);color:var(--accent)}.stat-icon.green{background:rgba(16,185,129,0.12);color:var(--green)}.stat-icon.blue{background:rgba(59,130,246,0.12);color:var(--blue)}.stat-icon.purple{background:rgba(139,92,246,0.12);color:var(--purple)}
+.stat-icon.amber{background:rgba(245,158,11,0.12);color:var(--accent)}.stat-icon.green{background:rgba(16,185,129,0.12);color:var(--green)}.stat-icon.blue{background:rgba(59,130,246,0.12);color:var(--blue)}.stat-icon.purple{background:rgba(139,92,246,0.12);color:var(--purple)}.stat-icon.cyan{background:rgba(6,182,212,0.12);color:#06b6d4}
 .stat-value{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;line-height:1}
 .stat-label{font-size:12px;color:var(--text-muted);margin-top:4px}
 .stat-badge{position:absolute;top:14px;right:14px;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
@@ -461,7 +461,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 .notif-time{font-size:11px;color:var(--text-muted);margin-top:4px}
 
 /* ── REPORT SUBMIT ── */
-.report-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:600px}
+.report-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%}
 .upload-zone{border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
 .upload-zone:hover{border-color:var(--accent)}
 .upload-zone p{font-size:13px;color:var(--text-muted);margin-top:8px}
