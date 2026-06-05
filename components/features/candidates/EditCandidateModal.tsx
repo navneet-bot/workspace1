@@ -76,9 +76,9 @@ export function EditCandidateModal({ isOpen, onClose, candidate, onUpdate }: Edi
       skill: formData.skill,
       state: formData.state,
       college: formData.college,
-      edu_domain: formData.eduDomain, // mapping camelCase to db schema
+      eduDomain: formData.eduDomain,
       duration: formData.duration,
-      resume_link: formData.resumeLink
+      resumeLink: formData.resumeLink
     });
     
     setIsSaving(false);
