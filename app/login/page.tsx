@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 
 function LoginForm() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +35,7 @@ function LoginForm() {
       
       const result = await signIn("credentials", {
         redirect: false,
-        email,
+        identifier,
         password,
         callbackUrl,
       });
@@ -50,7 +50,7 @@ function LoginForm() {
         }
 
         const errorMessages: Record<string, string> = {
-          CredentialsSignin: "Invalid email or password.",
+          CredentialsSignin: "Invalid User ID or Password.",
           AccessDenied: "Access denied.",
           Configuration: "Authentication service unavailable.",
         };
@@ -93,13 +93,13 @@ function LoginForm() {
           <ErrorAlert error={error} />
 
           <div className="field-group">
-            <label>Email Address</label>
+            <label>User ID</label>
             <input
-              type="email"
+              type="text"
               required
-              placeholder="yourname@jobjockey.in"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your JobJockey User ID"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
             />
           </div>
 
@@ -123,7 +123,7 @@ function LoginForm() {
           </button>
 
           <p className="domain-note">
-            Only <span>@jobjockey.in</span> or registered tutor <span>@gmail.com</span> emails are allowed
+            Use your <span>JobJockey User ID</span> to sign in
           </p>
         </form>
       </div>

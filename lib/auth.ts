@@ -13,27 +13,36 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "your@email.com" },
+        identifier: { label: "User ID", type: "text", placeholder: "Enter your JobJockey User ID" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
         console.log("Authorize called");
-        console.log("Email:", credentials?.email);
+        console.log("Identifier:", credentials?.identifier);
 
         try {
-          if (!credentials?.email || !credentials?.password) {
+          if (!credentials?.identifier || !credentials?.password) {
             console.error("AUTH FAILED: Missing credentials");
             return null;
           }
 
-          const user = await prisma.user.findFirst({
+          const identifier = credentials.identifier;
+
+          let user = await prisma.user.findUnique({
             where: {
-              OR: [
-                { email: credentials.email },
-                { jobjockeyId: credentials.email }
-              ]
+              jobjockeyId: identifier
             }
           });
+
+          // Legacy users fallback: If they do not have a jobjockeyId, continue using the current login method
+          if (!user) {
+            const legacyUser = await prisma.user.findUnique({
+              where: { email: identifier }
+            });
+            if (legacyUser && !legacyUser.jobjockeyId) {
+              user = legacyUser;
+            }
+          }
 
           console.log("User found:", !!user);
 
