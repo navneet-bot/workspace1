@@ -39,6 +39,7 @@ export function AttendanceView({
   const [internAttDate, setInternAttDate] = useState<Date>(new Date());
   const [leaveDate, setLeaveDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [leaveEndDate, setLeaveEndDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [leaveType, setLeaveType] = useState<string>("Sick Leave");
   const [leaveReason, setLeaveReason] = useState<string>("");
   const [leaveLoading, setLeaveLoading] = useState(false);
 
@@ -232,8 +233,15 @@ export function AttendanceView({
     month: "long",
   });
 
-  const handleMark = async (email: string, status: string, date: string, silent = false) => {
-    const res = await markAttendance(email, status, date);
+  const handleMark = async (
+    email: string,
+    status: string,
+    date: string,
+    silent = false,
+    lType?: string,
+    lReason?: string
+  ) => {
+    const res = await markAttendance(email, status, date, lType, lReason);
     if (res.success) {
       if (!silent) addToast(`${email.split("@")[0]} → ${status}`, "success");
       setRecords((prev) => {
@@ -389,7 +397,7 @@ export function AttendanceView({
 
     let allOk = true;
     for (const d of dates) {
-      const res = await handleMark(currentUserEmail, "Leave Requested", d, true);
+      const res = await handleMark(currentUserEmail, "Leave Requested", d, true, leaveType, leaveReason);
       if (!res?.success) allOk = false;
     }
     setLeaveLoading(false);
@@ -839,6 +847,8 @@ export function AttendanceView({
                       <thead>
                         <tr>
                           <th style={{ padding: "12px 16px" }}>Employee</th>
+                          <th style={{ padding: "12px 16px" }}>Type</th>
+                          <th style={{ padding: "12px 16px" }}>Reason</th>
                           <th style={{ padding: "12px 16px" }}>Requested Date</th>
                           <th style={{ padding: "12px 16px" }}>Status</th>
                           <th style={{ padding: "12px 16px" }}>Actions</th>
@@ -850,6 +860,12 @@ export function AttendanceView({
                             <td style={{ padding: "12px 16px" }}>
                               <strong>{leave.name}</strong>
                               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{leave.email}</div>
+                            </td>
+                            <td style={{ padding: "12px 16px" }}>
+                              <span style={{ fontSize: "12.5px", fontWeight: 600 }}>{leave.leaveType || "Casual Leave"}</span>
+                            </td>
+                            <td style={{ padding: "12px 16px", maxWidth: "250px", wordBreak: "break-word" }}>
+                              <span style={{ fontSize: "12px", color: "var(--text-soft)" }}>{leave.leaveReason || "—"}</span>
                             </td>
                             <td style={{ padding: "12px 16px" }}>
                               <strong>{new Date(leave.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</strong>
@@ -961,17 +977,33 @@ export function AttendanceView({
     year: "numeric",
   });
 
-  const monthPrefix = `${yr}-${String(mo + 1).padStart(2, "0")}`;
   const myRecords = records.filter((r) => r.email === currentUserEmail);
-  const monthData = myRecords.filter((a) => a.date?.startsWith(monthPrefix));
-  const mp = monthData.filter((a) => a.status === "Present").length;
-  const ma = monthData.filter((a) => a.status === "Absent").length;
-  const ml = monthData.filter((a) => a.status === "Leave").length;
-
   const attMap: Record<string, string> = {};
   myRecords.forEach((a) => {
     if (a.date) attMap[a.date] = a.status;
   });
+
+  let mp = 0;
+  let ma = 0;
+  let ml = 0;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const dayOfWeek = new Date(yr, mo, d).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isPast = iso < todayISO;
+    const st = attMap[iso];
+
+    if (st === "Present") {
+      mp++;
+    } else if (st === "Leave") {
+      ml++;
+    } else if (st === "Absent") {
+      ma++;
+    } else if (!st && isPast && !isWeekend) {
+      ma++;
+    }
+  }
 
   const dayHeaders = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -983,7 +1015,16 @@ export function AttendanceView({
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const isToday = iso === todayISO;
-    const st = attMap[iso];
+    const dayOfWeek = new Date(yr, mo, d).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isPast = iso < todayISO;
+    
+    let st = attMap[iso];
+    let isImplicitAbsent = false;
+    if (!st && isPast && !isWeekend) {
+      st = "Absent";
+      isImplicitAbsent = true;
+    }
 
     const bgClass =
       st === "Present"
@@ -992,6 +1033,8 @@ export function AttendanceView({
         ? { backgroundColor: "rgba(239,68,68,0.12)", borderColor: "var(--red)" }
         : st === "Leave"
         ? { backgroundColor: "rgba(139,92,246,0.12)", borderColor: "var(--purple)" }
+        : st === "Leave Requested"
+        ? { backgroundColor: "rgba(245,158,11,0.12)", borderColor: "var(--amber)" }
         : {};
 
     const dot =
@@ -1003,12 +1046,17 @@ export function AttendanceView({
       ) : st === "Absent" ? (
         <>
           <div className="mt-1 text-[18px] leading-none text-jj-red">✗</div>
-          <div className="text-[10px] text-jj-red">Absent</div>
+          <div className="text-[10px] text-jj-red">{isImplicitAbsent ? "Absent (No Log)" : "Absent"}</div>
         </>
       ) : st === "Leave" ? (
         <>
           <div className="mt-1 text-[18px] leading-none text-jj-purple">🏖</div>
           <div className="text-[10px] text-jj-purple">Leave</div>
+        </>
+      ) : st === "Leave Requested" ? (
+        <>
+          <div className="mt-1 text-[18px] leading-none text-jj-amber">⏳</div>
+          <div className="text-[10px] text-jj-amber" style={{ fontSize: "9px" }}>Pending</div>
         </>
       ) : null;
 
@@ -1222,6 +1270,21 @@ export function AttendanceView({
                   </div>
                 );
               })()}
+
+              {/* Leave Type */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-soft)" }}>Leave Type</label>
+                <select
+                  value={leaveType}
+                  onChange={(e) => setLeaveType(e.target.value)}
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "8px 10px", color: "var(--text)", fontSize: "13px", width: "100%", outline: "none", cursor: "pointer" }}
+                >
+                  <option value="Sick Leave">Sick Leave</option>
+                  <option value="Casual Leave">Casual Leave</option>
+                  <option value="Casual / Urgent Work">Casual / Urgent Work</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
 
               {/* Reason */}
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>

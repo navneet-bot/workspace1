@@ -16,10 +16,26 @@ export default async function ReportsPage() {
   const permList = permissions.split(",").map((p: string) => p.trim());
   const canManage = role === "admin" || role === "super_admin" || role === "tutor" || permList.includes("view_reports");
 
-  const reports = await prisma.report.findMany({
-    where: canManage ? undefined : { submittedBy: session.user.email },
+  const allReports = await prisma.report.findMany({
     orderBy: { submittedAt: "desc" }
   }).catch(() => []);
+
+  let reports = [];
+  if (role === "admin" || role === "super_admin" || permList.includes("view_reports")) {
+    reports = allReports;
+  } else if (role === "tutor") {
+    reports = allReports.filter(r => {
+      if (r.submittedBy === session?.user?.email) return true;
+      try {
+        const targetEmails = r.submittedTo ? JSON.parse(r.submittedTo) : [];
+        return Array.isArray(targetEmails) && targetEmails.includes(session?.user?.email || "");
+      } catch {
+        return false;
+      }
+    });
+  } else {
+    reports = allReports.filter(r => r.submittedBy === session?.user?.email);
+  }
 
   const potentialReviewers = await prisma.user.findMany({
     where: { role: { in: ["admin", "super_admin", "tutor"] } },
@@ -29,10 +45,11 @@ export default async function ReportsPage() {
   return (
     <div className="page-stack">
       <ReportsView 
-        reports={reports} 
-        currentUserEmail={session.user.email} 
+        reports={reports as any} 
+        currentUserEmail={session?.user?.email || ""} 
         canManage={canManage} 
         reviewers={potentialReviewers as any}
+        currentUserRole={role}
       />
     </div>
   );

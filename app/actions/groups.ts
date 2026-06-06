@@ -43,3 +43,22 @@ export async function renameGroup(id: number, newName: string) {
     return { success: false, error: "Failed to rename group" };
   }
 }
+
+export async function updateGroup(id: number, data: {
+  name?: string;
+  description?: string;
+  icon?: string;
+  members?: string;
+}) {
+  try {
+    const group = await prisma.group.update({
+      where: { id },
+      data
+    });
+    revalidatePath("/dashboard/groups");
+    revalidatePath("/dashboard/chat");
+    return { success: true, group };
+  } catch (error) {
+    return { success: false, error: "Failed to update group" };
+  }
+}

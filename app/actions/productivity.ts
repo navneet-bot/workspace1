@@ -35,10 +35,45 @@ function calculateUserProductivity(
   const currentDate = new Date();
 
   // 1. Attendance (20%)
+  const nowKolkata = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const todayStr = nowKolkata.toISOString().split("T")[0];
+
+  const start = new Date(user.createdAt || new Date());
+  const elapsedWeekdays: string[] = [];
+  const cur = new Date(start);
+  cur.setHours(0, 0, 0, 0);
+  const end = new Date(nowKolkata);
+  end.setHours(0, 0, 0, 0);
+  while (cur <= end) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) {
+      elapsedWeekdays.push(cur.toISOString().split("T")[0]);
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
   const userAtt = attendance.filter((a) => a.email === email);
-  const present = userAtt.filter((a) => a.status === "Present").length;
-  const absent = userAtt.filter((a) => a.status === "Absent").length;
-  const leave = userAtt.filter((a) => a.status === "Leave").length;
+  const attMap = new Map<string, string>();
+  userAtt.forEach(a => {
+    if (a.date) attMap.set(a.date, a.status);
+  });
+
+  let present = 0;
+  let absent = 0;
+  let leave = 0;
+
+  userAtt.forEach(a => {
+    if (a.status === "Present") present++;
+    else if (a.status === "Leave") leave++;
+    else if (a.status === "Absent") absent++;
+  });
+
+  elapsedWeekdays.forEach(date => {
+    if (date < todayStr && !attMap.has(date)) {
+      absent++;
+    }
+  });
+
   const totalDays = present + absent + leave;
   const attendanceRate = totalDays > 0 ? present / totalDays : 1.0;
 

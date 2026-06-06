@@ -12,8 +12,28 @@ export async function submitReport(data: {
   recipients?: string[];
 }) {
   try {
-    let targetEmails = data.recipients;
-    if (!targetEmails || targetEmails.length === 0) {
+    let targetEmails = data.recipients || [];
+
+    // Find projects where the user is a member and retrieve the manager's email
+    if (data.submittedBy) {
+      const projects = await prisma.project.findMany();
+      const userProjects = projects.filter(p => {
+        try {
+          const members = JSON.parse(p.members || "[]");
+          return Array.isArray(members) && members.includes(data.submittedBy);
+        } catch {
+          return false;
+        }
+      });
+      const managerEmails = userProjects
+        .map(p => p.managerEmail)
+        .filter((email): email is string => typeof email === "string" && email.trim() !== "");
+      if (managerEmails.length > 0) {
+        targetEmails = Array.from(new Set([...targetEmails, ...managerEmails]));
+      }
+    }
+
+    if (targetEmails.length === 0) {
       // Fallback: Fetch all admin and super admin users
       const admins = await prisma.user.findMany({
         where: {

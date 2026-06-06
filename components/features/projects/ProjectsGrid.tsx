@@ -14,9 +14,28 @@ interface Project {
   progress: number;
   color: string;
   members: string;
+  managerEmail?: string;
+  deadline?: string;
 }
 
-export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: { initialProjects: Project[]; canManage: boolean; currentUserEmail: string }) {
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export function ProjectsGrid({
+  initialProjects,
+  canManage,
+  currentUserEmail,
+  allUsers = [],
+}: {
+  initialProjects: Project[];
+  canManage: boolean;
+  currentUserEmail: string;
+  allUsers?: User[];
+}) {
   const { addToast } = useUIStore();
   const [projects, setProjects] = useState(initialProjects);
 
@@ -32,6 +51,11 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("In Progress");
   const [loading, setLoading] = useState(false);
+  const [managerEmail, setManagerEmail] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [managerSearch, setManagerSearch] = useState("");
+  const [deadline, setDeadline] = useState("");
 
   const PROJECT_COLORS = ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#f97316"];
 
@@ -56,6 +80,9 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
       progress: 0,
       color,
       createdBy: currentUserEmail,
+      managerEmail,
+      members: JSON.stringify(selectedMembers),
+      deadline,
     });
     setLoading(false);
 
@@ -65,6 +92,9 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
       setName("");
       setDescription("");
       setColor("#3b82f6");
+      setManagerEmail("");
+      setSelectedMembers([]);
+      setDeadline("");
       window.location.reload();
     } else {
       addToast(res.error || "Failed to create", "error");
@@ -84,6 +114,9 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
       description,
       progress,
       status: finalStatus,
+      managerEmail,
+      members: JSON.stringify(selectedMembers),
+      deadline,
     });
     setLoading(false);
 
@@ -129,6 +162,11 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
     setDescription(p.description);
     setProgress(p.progress);
     setStatus(p.status);
+    setManagerEmail(p.managerEmail || "");
+    setSelectedMembers(getMembersList(p.members));
+    setMemberSearch("");
+    setManagerSearch("");
+    setDeadline(p.deadline || "");
     setIsEditModalOpen(true);
   };
 
@@ -143,6 +181,11 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
                 setName("");
                 setDescription("");
                 setColor("#3b82f6");
+                setManagerEmail("");
+                setSelectedMembers([]);
+                setMemberSearch("");
+                setManagerSearch("");
+                setDeadline("");
                 setIsCreateModalOpen(true);
               }}
               className="btn-sm btn-accent"
@@ -154,9 +197,11 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
 
         <div className="table-scroll">
           <table>
-            <thead>
+             <thead>
               <tr>
                 <th>Project</th>
+                <th>Reporting Manager</th>
+                <th>Deadline</th>
                 <th>Progress</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -165,7 +210,7 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
             <tbody>
               {projects.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
                     No projects yet
                   </td>
                 </tr>
@@ -191,6 +236,44 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
                             )}
                           </div>
                         </div>
+                      </td>
+                      <td>
+                        {(() => {
+                          if (!p.managerEmail) return <span style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>—</span>;
+                          const manager = allUsers.find(u => u.email === p.managerEmail);
+                          return (
+                            <div>
+                              <strong style={{ fontSize: "13px" }}>{manager ? manager.name : p.managerEmail.split("@")[0]}</strong>
+                              <br />
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{p.managerEmail}</span>
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td>
+                        {p.deadline ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 500 }}>
+                              {new Date(p.deadline).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                            {(() => {
+                              const dlDate = new Date(p.deadline);
+                              const now = new Date();
+                              dlDate.setHours(0, 0, 0, 0);
+                              now.setHours(0, 0, 0, 0);
+                              if (dlDate < now && p.status !== "Completed") {
+                                return <span style={{ fontSize: "10px", color: "#ef4444", fontWeight: 600 }}>Overdue</span>;
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        ) : (
+                          <span style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>TBD</span>
+                        )}
                       </td>
                       <td style={{ minWidth: "180px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -279,6 +362,78 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
                   />
                 </div>
                 <div className="field">
+                  <label>Deadline</label>
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Reporting Manager</label>
+                  <input
+                    className="search-input"
+                    placeholder="🔍 Search managers..."
+                    type="text"
+                    value={managerSearch}
+                    onChange={(e) => setManagerSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }}
+                  />
+                  <div style={{ maxHeight: 110, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, backgroundColor: "var(--surface2)" }}>
+                    {allUsers
+                      .filter(u => (u.role === "admin" || u.role === "super_admin" || u.role === "tutor") && (u.name.toLowerCase().includes(managerSearch.toLowerCase()) || u.email.toLowerCase().includes(managerSearch.toLowerCase())))
+                      .map(u => {
+                        const isChecked = managerEmail === u.email;
+                        return (
+                          <label key={u.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--border)" }} className="hover:bg-white/[0.04]">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setManagerEmail(isChecked ? "" : u.email);
+                              }}
+                              style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
+                            />
+                            <span style={{ fontSize: "12.5px" }}>{u.name} ({u.role.replace("_", " ")})</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Project Members</label>
+                  <input
+                    className="search-input"
+                    placeholder="🔍 Search members..."
+                    type="text"
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }}
+                  />
+                  <div style={{ maxHeight: 110, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, backgroundColor: "var(--surface2)" }}>
+                    {allUsers
+                      .filter(u => u.role === "intern" && (u.name.toLowerCase().includes(memberSearch.toLowerCase()) || u.email.toLowerCase().includes(memberSearch.toLowerCase())))
+                      .map(u => {
+                        const isChecked = selectedMembers.includes(u.email);
+                        return (
+                          <label key={u.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--border)" }} className="hover:bg-white/[0.04]">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setSelectedMembers(prev =>
+                                  prev.includes(u.email) ? prev.filter(e => e !== u.email) : [...prev, u.email]
+                                );
+                              }}
+                              style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
+                            />
+                            <span style={{ fontSize: "12.5px" }}>{u.name} ({u.email.split("@")[0]})</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <div className="field">
                   <label>Color</label>
                   <div className="mt-1 flex flex-wrap gap-2">
                     {PROJECT_COLORS.map((c) => (
@@ -350,6 +505,78 @@ export function ProjectsGrid({ initialProjects, canManage, currentUserEmail }: {
                     rows={2}
                     style={{ resize: "vertical" }}
                   />
+                </div>
+                <div className="field">
+                  <label>Deadline</label>
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Reporting Manager</label>
+                  <input
+                    className="search-input"
+                    placeholder="🔍 Search managers..."
+                    type="text"
+                    value={managerSearch}
+                    onChange={(e) => setManagerSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }}
+                  />
+                  <div style={{ maxHeight: 110, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, backgroundColor: "var(--surface2)" }}>
+                    {allUsers
+                      .filter(u => (u.role === "admin" || u.role === "super_admin" || u.role === "tutor") && (u.name.toLowerCase().includes(managerSearch.toLowerCase()) || u.email.toLowerCase().includes(managerSearch.toLowerCase())))
+                      .map(u => {
+                        const isChecked = managerEmail === u.email;
+                        return (
+                          <label key={u.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--border)" }} className="hover:bg-white/[0.04]">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setManagerEmail(isChecked ? "" : u.email);
+                              }}
+                              style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
+                            />
+                            <span style={{ fontSize: "12.5px" }}>{u.name} ({u.role.replace("_", " ")})</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Project Members</label>
+                  <input
+                    className="search-input"
+                    placeholder="🔍 Search members..."
+                    type="text"
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }}
+                  />
+                  <div style={{ maxHeight: 110, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, backgroundColor: "var(--surface2)" }}>
+                    {allUsers
+                      .filter(u => u.role === "intern" && (u.name.toLowerCase().includes(memberSearch.toLowerCase()) || u.email.toLowerCase().includes(memberSearch.toLowerCase())))
+                      .map(u => {
+                        const isChecked = selectedMembers.includes(u.email);
+                        return (
+                          <label key={u.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--border)" }} className="hover:bg-white/[0.04]">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setSelectedMembers(prev =>
+                                  prev.includes(u.email) ? prev.filter(e => e !== u.email) : [...prev, u.email]
+                                );
+                              }}
+                              style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
+                            />
+                            <span style={{ fontSize: "12.5px" }}>{u.name} ({u.email.split("@")[0]})</span>
+                          </label>
+                        );
+                      })}
+                  </div>
                 </div>
                 <div className="field">
                   <label>Status</label>

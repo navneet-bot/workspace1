@@ -21,10 +21,10 @@ export async function GET(req: Request) {
       return Response.json({ error: "Date is required" }, { status: 400 });
     }
 
-    // Get all users who are not admins/super_admins
+    // Get all users who are not admins/super_admins/tutors
     const users = await prisma.user.findMany({
       where: {
-        role: { notIn: ["admin", "super_admin"] }
+        role: { notIn: ["admin", "super_admin", "tutor"] }
       },
       select: {
         id: true,
@@ -82,10 +82,29 @@ export async function GET(req: Request) {
       }
     });
 
+    // Date checks in local time zone context (Asia/Kolkata)
+    const nowKolkata = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayStr = nowKolkata.toISOString().split("T")[0]; // YYYY-MM-DD
+    
+    const parts = dateStr.split("-").map(Number);
+    const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 6 = Saturday
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isFuture = dateStr > todayStr;
+
     // Construct response matching the requested schema
     const responseData = users.map((u) => {
       const email = u.email;
-      const status = attendanceMap.get(email) || "Absent";
+      let status = attendanceMap.get(email);
+      if (!status) {
+        if (isFuture) {
+          status = "Not Marked";
+        } else if (isWeekend) {
+          status = "Weekend";
+        } else {
+          status = "Absent";
+        }
+      }
       const checkIn = status.toLowerCase() === "present" ? (workLogMap.get(email) || "—") : "—";
       return {
         userId: u.id,

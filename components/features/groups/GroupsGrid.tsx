@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUIStore } from "@/hooks/useUIStore";
-import { createGroup, deleteGroup } from "@/app/actions/groups";
-import { Trash2 } from "lucide-react";
+import { createGroup, deleteGroup, updateGroup } from "@/app/actions/groups";
+import { Trash2, Pencil, Users } from "lucide-react";
 
 
 interface User {
@@ -44,6 +44,15 @@ export function GroupsGrid({
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Group editing state
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editIcon, setEditIcon] = useState("📁");
+  const [editMembers, setEditMembers] = useState<string[]>([]);
+  const [editSearch, setEditSearch] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
   const COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4"];
 
   const handleCreate = async () => {
@@ -81,6 +90,43 @@ export function GroupsGrid({
     } else {
       addToast(res.error || "Failed to delete", "error");
     }
+  };
+
+  const startEdit = (g: Group) => {
+    setEditingGroup(g);
+    setEditName(g.name);
+    setEditDescription(g.description || "");
+    setEditIcon(g.icon || "📁");
+    setEditMembers(getMembersList(g.members));
+    setEditSearch("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingGroup) return;
+    if (!editName.trim()) return addToast("Group Name is required", "error");
+
+    setIsSavingEdit(true);
+    const res = await updateGroup(editingGroup.id, {
+      name: editName,
+      description: editDescription,
+      icon: editIcon,
+      members: JSON.stringify(editMembers),
+    });
+    setIsSavingEdit(false);
+
+    if (res.success && res.group) {
+      addToast("Group updated successfully", "success");
+      setGroups(groups.map((g) => (g.id === editingGroup.id ? (res.group as any) : g)));
+      setEditingGroup(null);
+    } else {
+      addToast(res.error || "Failed to update group", "error");
+    }
+  };
+
+  const toggleEditMember = (email: string) => {
+    setEditMembers((prev) =>
+      prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]
+    );
   };
 
   const toggleMember = (email: string) => {
@@ -341,16 +387,29 @@ export function GroupsGrid({
                       💬 Chat
                     </button>
                     {canManage && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(g.id);
-                        }}
-                        className="action-btn action-reject flex items-center justify-center"
-                        style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
-                      >
-                        <Trash2 size={12} className="stroke-[2.5]" />
-                      </button>
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(g);
+                          }}
+                          className="action-btn action-edit flex items-center justify-center"
+                          style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
+                          title="Edit Group / Members"
+                        >
+                          <Pencil size={12} className="stroke-[2.5]" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(g.id);
+                          }}
+                          className="action-btn action-reject flex items-center justify-center"
+                          style={{ width: "28px", height: "28px", padding: 0, borderRadius: "6px" }}
+                        >
+                          <Trash2 size={12} className="stroke-[2.5]" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -359,6 +418,159 @@ export function GroupsGrid({
           })
         )}
       </div>
+      {/* EDIT GROUP MODAL */}
+      {editingGroup && (
+        <div className="modal-shell">
+          <div className="modal" style={{ width: "90vw", maxWidth: "500px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+              <h3 style={{ margin: 0 }} className="flex items-center gap-2">
+                <Users size={18} className="text-jj-accent" />
+                Edit Group: {editingGroup.name}
+              </h3>
+              <button type="button" onClick={() => setEditingGroup(null)} className="modal-close">✕</button>
+            </div>
+
+            <div className="modal-form" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div className="field">
+                <label>Group Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Group Name"
+                />
+              </div>
+              
+              <div className="field">
+                <label>Description</label>
+                <input
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Group Description"
+                />
+              </div>
+              
+              <div className="field">
+                <label>Icon</label>
+                <input
+                  type="text"
+                  value={editIcon}
+                  onChange={(e) => setEditIcon(e.target.value)}
+                  placeholder="📁"
+                />
+              </div>
+
+              {/* Members check boxes */}
+              <div className="field">
+                <label>Group Members</label>
+                <input
+                  className="search-input"
+                  placeholder="🔍 Search members..."
+                  type="text"
+                  value={editSearch}
+                  onChange={(e) => setEditSearch(e.target.value)}
+                  style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }}
+                />
+                
+                <div style={{ maxHeight: 150, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, backgroundColor: "var(--surface2)" }}>
+                  {allUsers
+                    .filter((u) => u.role !== "admin")
+                    .map((u, i) => {
+                      const isSelected = editMembers.includes(u.email);
+                      const color = COLORS[i % COLORS.length];
+                      const query = editSearch.trim().toLowerCase();
+                      const matches = !query || u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query);
+                      
+                      if (!matches) return null;
+                      
+                      return (
+                        <label
+                          key={u.email}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            borderBottom: "1px solid var(--border)",
+                          }}
+                          className="hover:bg-white/[0.04]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleEditMember(u.email)}
+                            style={{ accentColor: "var(--accent)", width: 15, height: 15, flexShrink: 0 }}
+                          />
+                          <div
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              backgroundColor: `${color}22`,
+                              color: color,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {u.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{u.name}</div>
+                            <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>@{u.email.split("@")[0]}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button
+                    className="action-btn action-approve"
+                    type="button"
+                    onClick={() => setEditMembers(allUsers.filter((u) => u.role !== "admin").map((u) => u.email))}
+                  >
+                    + Select All
+                  </button>
+                  <button
+                    className="action-btn action-reject"
+                    type="button"
+                    onClick={() => setEditMembers([])}
+                  >
+                    ✕ Clear All
+                  </button>
+                  <span style={{ fontSize: 12, color: "var(--accent)", padding: "4px 0" }}>
+                    {editMembers.length} selected
+                  </span>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setEditingGroup(null)}
+                  className="btn-sm btn-outline"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit}
+                  className="btn-sm btn-accent"
+                >
+                  {isSavingEdit ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

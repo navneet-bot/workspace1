@@ -10,6 +10,9 @@ export async function createProject(data: {
   progress: number;
   color: string;
   createdBy: string;
+  managerEmail?: string;
+  members?: string;
+  deadline?: string;
 }) {
   try {
     await prisma.project.create({ data });
@@ -26,6 +29,9 @@ export async function updateProject(id: number, data: {
   status?: string;
   progress?: number;
   color?: string;
+  managerEmail?: string;
+  members?: string;
+  deadline?: string;
 }) {
   try {
     await prisma.project.update({

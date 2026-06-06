@@ -105,10 +105,45 @@ export default async function DashboardPage() {
     const completed = tasks.filter((task) => task.status === "Completed").length;
     const total = tasks.length;
 
+    const userProfile = await prisma.user.findUnique({
+      where: { email: userEmail },
+      select: { createdAt: true }
+    });
+    const userCreatedAt = userProfile?.createdAt || new Date();
+
+    const nowKolkata = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayISO = nowKolkata.toISOString().split("T")[0];
+
+    const elapsedWeekdays: string[] = [];
+    const cur = new Date(userCreatedAt);
+    cur.setHours(0, 0, 0, 0);
+    const end = new Date(nowKolkata);
+    end.setHours(0, 0, 0, 0);
+    while (cur <= end) {
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6) {
+        elapsedWeekdays.push(cur.toISOString().split("T")[0]);
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+
     const present = attendance.filter((row) => row.status === "Present").length;
-    const absent = attendance.filter((row) => row.status === "Absent").length;
     const leave = attendance.filter((row) => row.status === "Leave").length;
-    const attendanceTotal = attendance.length;
+    
+    // Explicit absent records
+    let absent = attendance.filter((row) => row.status === "Absent").length;
+    
+    // Set of database dates to avoid double counting
+    const loggedDates = new Set(attendance.map(r => r.date));
+    
+    // Add implicit absent days for past weekdays with no logs
+    elapsedWeekdays.forEach(date => {
+      if (date < todayISO && !loggedDates.has(date)) {
+        absent++;
+      }
+    });
+
+    const attendanceTotal = present + absent + leave;
     const attendanceScore = attendanceTotal > 0 ? Math.round((present / attendanceTotal) * 100) : 0;
     const taskScore = total > 0 ? Math.round((completed / total) * 100) : 0;
     const overallScore = Math.round(taskScore * 0.6 + attendanceScore * 0.4);
@@ -120,8 +155,6 @@ export default async function DashboardPage() {
         return false;
       }
     });
-
-    const todayISO = new Date().toISOString().split("T")[0];
     const todayRecord = attendance.find((row) => row.date === todayISO);
     const todayStatus = todayRecord?.status || "Not Marked";
     const unread = notifications.filter((item) => {
@@ -481,7 +514,7 @@ export default async function DashboardPage() {
             <div className="stat-label">Active Interns</div>
           </div>
         </Link>
-        <Link href="/dashboard/users" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/dashboard/tutors" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="stat-card cyan" style={{ cursor: "pointer" }}>
             <div className="stat-icon cyan">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><polyline points="17 11 19 13 23 9" /></svg>

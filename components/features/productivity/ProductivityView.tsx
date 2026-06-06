@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useUIStore } from "@/hooks/useUIStore";
-import { 
+import {
   Download, TrendingUp, CheckCircle, Calendar, Trophy, X,
   MessageSquare, Briefcase, BookOpen, Heart, ShieldAlert, Star,
   Users, Mail, User, Lightbulb, AlertTriangle
@@ -133,7 +133,7 @@ export function ProductivityView({
       `${i + 1},"${s.name}",${s.email},${s.breakdown.attendance.score}%,${s.breakdown.tasks.score}%,${s.breakdown.projects.score}%,${s.breakdown.workLogs.score}%,${s.breakdown.meetings.score}%,${s.breakdown.communication.score}%,${s.breakdown.breaks.score}%,"${s.breakdown.feedback.rating}",${s.overall_score}%,${getGrade(s.overall_score)}`
     );
     const csv = [header, ...rows].join("\n");
-    
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -409,8 +409,8 @@ export function ProductivityView({
                 const grade = getGrade(s.overall_score);
 
                 return (
-                  <tr 
-                    key={s.email} 
+                  <tr
+                    key={s.email}
                     onClick={() => handleOpenModal(s)}
                     className="cursor-pointer hover:bg-jj-bg-muted transition-colors"
                   >
@@ -456,11 +456,10 @@ export function ProductivityView({
                       <div className="text-[10px] text-jj-text-muted">{s.breakdown.breaks.count} breaks ({s.breakdown.breaks.duration}m)</div>
                     </td>
                     <td>
-                      <span className={`badge-sm ${
-                        s.breakdown.feedback.rating === "Excellent" ? "green" : 
-                        s.breakdown.feedback.rating === "Good" ? "blue" : 
-                        s.breakdown.feedback.rating === "Average" ? "amber" : "red"
-                      }`}>
+                      <span className={`badge-sm ${s.breakdown.feedback.rating === "Excellent" ? "green" :
+                        s.breakdown.feedback.rating === "Good" ? "blue" :
+                          s.breakdown.feedback.rating === "Average" ? "amber" : "red"
+                        }`}>
                         {s.breakdown.feedback.rating}
                       </span>
                     </td>
@@ -534,7 +533,7 @@ export function ProductivityView({
 
         return (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm transition-opacity sm:p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm transition-opacity sm:p-4"
             onClick={() => setSelectedIntern(null)}
           >
             <div
@@ -544,7 +543,7 @@ export function ProductivityView({
               className="relative flex max-h-[92vh] w-full max-w-[1080px] flex-col overflow-hidden rounded-xl border border-jj-border bg-jj-bg-surface shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div 
+              <div
                 className="flex items-start justify-between gap-4 border-b border-jj-border"
                 style={{ padding: "24px 32px" }}
               >
@@ -583,15 +582,15 @@ export function ProductivityView({
                 </button>
               </div>
 
-              <div 
+              <div
                 className="overflow-y-auto"
                 style={{ padding: "24px 32px" }}
               >
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr]">
                   {/* Left Column: Summary & Insights */}
                   <div className="flex flex-col gap-6">
-                    <section 
-                      className="surface-panel flex flex-col items-center justify-center text-center" 
+                    <section
+                      className="surface-panel flex flex-col items-center justify-center text-center"
                       style={{ padding: "28px" }}
                       aria-label="Overall performance score"
                     >
@@ -636,12 +635,12 @@ export function ProductivityView({
                       </div>
                     </section>
 
-                    <section 
-                      className="surface-panel" 
+                    <section
+                      className="surface-panel"
                       style={{ padding: "28px" }}
                       aria-labelledby="insights-title"
                     >
-                      <h3 id="insights-title" className="flex items-center gap-2 text-[14px] font-bold text-jj-text-main">
+                      <h3 id="insights-title" className="flex items-center gap-2 text-[14px] font-bold text-jj-text-main" style={{ marginBottom: "12px" }}>
                         <Lightbulb size={16} className="text-amber-400" aria-hidden="true" />
                         Key Insights
                       </h3>
@@ -649,13 +648,12 @@ export function ProductivityView({
                         {generateInsights(selectedIntern).map((insight, idx) => (
                           <div
                             key={`${insight.text}-${idx}`}
-                            className={`flex gap-3 rounded-lg border text-[12px] leading-relaxed ${
-                              insight.tone === "positive"
-                                ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"
-                                : insight.tone === "warning"
-                                  ? "border-amber-500/20 bg-amber-500/5 text-amber-200"
-                                  : "border-jj-border bg-jj-bg-muted/30 text-jj-text-muted"
-                            }`}
+                            className={`flex gap-3 rounded-lg border text-[12px] leading-relaxed ${insight.tone === "positive"
+                              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"
+                              : insight.tone === "warning"
+                                ? "border-amber-500/20 bg-amber-500/5 text-amber-200"
+                                : "border-jj-border bg-jj-bg-muted/30 text-jj-text-muted"
+                              }`}
                             style={{ padding: "14px 18px" }}
                           >
                             {insight.tone === "positive" ? (
@@ -674,8 +672,8 @@ export function ProductivityView({
 
                   {/* Right Column: Performance Breakdown & Evaluation */}
                   <div className="flex flex-col gap-6">
-                    <section 
-                      className="surface-panel" 
+                    <section
+                      className="surface-panel"
                       style={{ padding: "28px" }}
                       aria-labelledby="breakdown-title"
                     >
@@ -700,8 +698,8 @@ export function ProductivityView({
                           const Icon = metric.icon;
                           const scoreLabel = metric.score === null ? "No Data" : `${metric.score}%`;
                           return (
-                            <article 
-                              key={metric.label} 
+                            <article
+                              key={metric.label}
                               className="rounded-xl border border-jj-border bg-jj-bg-muted/20"
                               style={{ padding: "18px" }}
                             >
@@ -735,8 +733,8 @@ export function ProductivityView({
                       </div>
                     </section>
 
-                    <section 
-                      className="surface-panel" 
+                    <section
+                      className="surface-panel"
                       style={{ padding: "28px" }}
                       aria-labelledby="manager-review-title"
                     >
@@ -755,11 +753,10 @@ export function ProductivityView({
                               role="radio"
                               aria-checked={rating === lvl}
                               onClick={() => setRating(lvl)}
-                              className={`min-h-11 rounded-lg border px-4 text-[12px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                                rating === lvl
-                                  ? "border-blue-500 bg-blue-500/15 text-blue-200"
-                                  : "border-jj-border bg-jj-bg-muted/20 text-jj-text-muted hover:bg-jj-bg-muted/50"
-                              }`}
+                              className={`min-h-11 rounded-lg border px-4 text-[12px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${rating === lvl
+                                ? "border-blue-500 bg-blue-500/15 text-blue-200"
+                                : "border-jj-border bg-jj-bg-muted/20 text-jj-text-muted hover:bg-jj-bg-muted/50"
+                                }`}
                             >
                               {lvl}
                             </button>
@@ -783,14 +780,14 @@ export function ProductivityView({
                 </div>
               </div>
 
-              <div 
+              <div
                 className="sticky bottom-0 flex justify-end gap-3 border-t border-jj-border bg-jj-bg-surface"
                 style={{ padding: "16px 32px" }}
               >
                 <button
                   type="button"
                   onClick={() => setSelectedIntern(null)}
-                  className="h-12 rounded-lg border border-jj-border bg-transparent px-5 text-[13px] font-bold text-jj-text-muted transition-colors hover:bg-jj-bg-muted hover:text-jj-text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="flex h-12 min-w-[100px] items-center justify-center rounded-lg border border-jj-border bg-transparent px-5 text-[13px] font-bold text-jj-text-muted transition-colors hover:bg-jj-bg-muted hover:text-jj-text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   Cancel
                 </button>

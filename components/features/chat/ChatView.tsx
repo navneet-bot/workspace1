@@ -12,10 +12,11 @@ import {
   markMessagesAsRead,
   deleteConversation
 } from "@/app/actions/chat";
-import { deleteGroup, renameGroup } from "@/app/actions/groups";
-import { Search, Paperclip, Send, MessageSquare, Pin, Trash2, Smile, Edit2, ArrowLeft } from "lucide-react";
+import { deleteGroup, renameGroup, updateGroup } from "@/app/actions/groups";
+import { Search, Paperclip, Send, MessageSquare, Pin, Trash2, Smile, Edit2, ArrowLeft, Users, FileText } from "lucide-react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { useRouter } from "next/navigation";
+import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
 
 interface User {
   id: number;
@@ -85,6 +86,25 @@ export function ChatView({
   // Contacts state
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  
+  // Document preview states
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewFileData, setPreviewFileData] = useState("");
+
+  // Pending file upload confirmation state
+  const [pendingUploadFile, setPendingUploadFile] = useState<{
+    fileName: string;
+    fileSize: number;
+    dataUri: string;
+    isImg: boolean;
+  } | null>(null);
+
+  // Group member management states
+  const [manageMembersContact, setManageMembersContact] = useState<Contact | null>(null);
+  const [groupMembersEmails, setGroupMembersEmails] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [isSavingMembers, setIsSavingMembers] = useState(false);
   
   // Chat messaging states
   const [messages, setMessages] = useState<Message[]>([]);
@@ -531,11 +551,13 @@ export function ChatView({
     const file = e.target.files?.[0];
     if (!file || !selectedContact) return;
 
+    const nameLower = file.name.toLowerCase();
     const isImg = /^image\//.test(file.type);
-    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const allowedExtensions = [".doc", ".docx", ".pdf", ".txt", ".xlsx", ".csv"];
+    const hasAllowedExt = allowedExtensions.some(ext => nameLower.endsWith(ext));
 
-    if (!isImg && !isPdf) {
-      addToast("Only images and PDFs are supported", "error");
+    if (!isImg && !hasAllowedExt) {
+      addToast("Supported files: images, .pdf, .doc, .docx, .txt, .xlsx, .csv", "error");
       return;
     }
 
@@ -545,11 +567,14 @@ export function ChatView({
     }
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       const dataUri = event.target?.result as string;
-      const prefix = isImg ? `[img:${file.name}]` : `[file:${file.name}]`;
-      await handleSend(prefix + dataUri);
-      addToast("Attachment uploaded successfully!", "success");
+      setPendingUploadFile({
+        fileName: file.name,
+        fileSize: file.size,
+        dataUri,
+        isImg,
+      });
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -608,32 +633,41 @@ export function ChatView({
       const idx = msg.indexOf("]");
       const name = msg.slice(6, idx);
       const data = msg.slice(idx + 1);
-      const isPdf = name.toLowerCase().endsWith(".pdf");
-
-      if (isPdf) {
-        return (
-          <div className="flex items-center gap-2.5 rounded-lg border border-red-500/20 bg-red-500/5 p-2 px-3.5 min-w-[180px]">
-            <span className="text-[26px]">📄</span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-semibold text-jj-text truncate max-w-[140px]">{name}</div>
-              <div className="mt-1 flex gap-3 text-[11px] font-bold text-jj-accent">
-                <a href={data} target="_blank" rel="noopener noreferrer" className="hover:underline">View</a>
-                <a href={data} download={name} className="hover:underline">Download</a>
-              </div>
-            </div>
-          </div>
-        );
-      }
+      const nameLower = name.toLowerCase();
+      const isPdf = nameLower.endsWith(".pdf");
+      const isDocx = nameLower.endsWith(".docx");
+      const isTxt = nameLower.endsWith(".txt") || nameLower.endsWith(".csv");
+      const isViewable = isPdf || isDocx || isTxt;
 
       return (
-        <a
-          href={data}
-          download={name}
-          className="flex items-center gap-2 font-medium text-jj-accent text-[13px] hover:underline"
-        >
-          <Paperclip size={14} />
-          {name}
-        </a>
+        <div className="flex items-center gap-2.5 rounded-lg border border-jj-border bg-jj-bg-muted/40 p-2 px-3.5 min-w-[200px]">
+          <span className="text-[26px]">📄</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-jj-text truncate max-w-[150px]">{name}</div>
+            <div className="mt-1 flex gap-3 text-[11px] font-bold text-jj-accent">
+              {isViewable && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewFileName(name);
+                    setPreviewFileData(data);
+                    setPreviewOpen(true);
+                  }}
+                  className="hover:underline cursor-pointer bg-transparent border-none p-0 text-jj-accent font-bold"
+                >
+                  View
+                </button>
+              )}
+              <a
+                href={data}
+                download={name}
+                className="hover:underline text-jj-accent font-bold"
+              >
+                Download
+              </a>
+            </div>
+          </div>
+        </div>
       );
     }
 
@@ -996,7 +1030,7 @@ export function ChatView({
               <button
                 onClick={() => setEmojiPopupOpen(!emojiPopupOpen)}
                 className="icon-btn h-9 w-9 shrink-0 rounded-[9px] border border-jj-border bg-jj-surface2 p-1 text-jj-text-soft hover:text-jj-accent"
-                title="Insert Emoji"
+                aria-label="Insert Emoji"
               >
                 <Smile size={16} />
               </button>
@@ -1004,7 +1038,7 @@ export function ChatView({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="icon-btn h-9 w-9 shrink-0 rounded-[9px] border border-jj-border bg-jj-surface2 p-1 text-jj-text-soft hover:text-jj-accent"
-                title="Attach file"
+                aria-label="Attach file"
               >
                 <Paperclip size={16} />
               </button>
@@ -1013,7 +1047,7 @@ export function ChatView({
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
-                accept="image/*,.pdf"
+                accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.csv"
                 className="hidden"
               />
 
@@ -1072,6 +1106,33 @@ export function ChatView({
             <Edit2 size={13} />
             Rename
           </button>
+
+          {(() => {
+            const contact = contacts.find((c) => c.id === contextMenu.contactId);
+            if (contact && contact.isGroup && !contact.id.startsWith("mock_") && currentUser.role !== "intern") {
+              return (
+                <button
+                  onClick={() => {
+                    setManageMembersContact(contact);
+                    const group = groups.find((g) => g.id === contact.dbId);
+                    if (group) {
+                      try {
+                        setGroupMembersEmails(JSON.parse(group.members || "[]"));
+                      } catch {
+                        setGroupMembersEmails([]);
+                      }
+                    }
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-md px-3 py-2 hover:bg-jj-surface2 text-left transition-colors"
+                >
+                  <Users size={13} />
+                  Manage Members
+                </button>
+              );
+            }
+            return null;
+          })()}
 
           <button
             onClick={() => {
@@ -1200,6 +1261,274 @@ export function ChatView({
             alt="Lightbox view"
             className="max-w-[90vw] max-h-[90vh] rounded-lg object-contain shadow-2xl"
           />
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        fileName={previewFileName}
+        fileData={previewFileData}
+      />
+
+      {/* Manage Members Modal */}
+      {manageMembersContact && (
+        <div className="modal-shell">
+          <div className="modal">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-jj-text flex items-center gap-2">
+                <Users size={18} className="text-jj-accent" />
+                Manage Members: {manageMembersContact.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setManageMembersContact(null)}
+                className="modal-close"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="field">
+              <label>Search Users</label>
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                className="w-full bg-jj-surface2 border border-jj-border rounded-lg px-3 py-2 text-jj-text focus:outline-none focus:border-jj-accent text-sm"
+              />
+            </div>
+            
+            <div style={{ maxHeight: "200px", overflowY: "auto", border: "1px solid var(--border)", borderRadius: "8px", margin: "12px 0", padding: "8px" }} className="bg-jj-surface2">
+              {users
+                .filter(u => u.role === "intern" && (u.name.toLowerCase().includes(memberSearch.toLowerCase()) || u.email.toLowerCase().includes(memberSearch.toLowerCase())))
+                .map(u => {
+                  const isChecked = groupMembersEmails.includes(u.email);
+                  return (
+                    <label key={u.id} className="flex items-center gap-2 p-2 hover:bg-white/[0.03] rounded-md cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setGroupMembersEmails([...groupMembersEmails, u.email]);
+                          } else {
+                            setGroupMembersEmails(groupMembersEmails.filter(email => email !== u.email));
+                          }
+                        }}
+                        style={{ accentColor: "var(--accent)" }}
+                      />
+                      <div>
+                        <div className="font-semibold text-jj-text">{u.name}</div>
+                        <div className="text-xs text-jj-text-muted">{u.email}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                onClick={() => setManageMembersContact(null)}
+                className="px-6 py-2.5 rounded-md border border-jj-border hover:bg-jj-surface2 transition-colors text-jj-text text-[13px] font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsSavingMembers(true);
+                  const res = await updateGroup(manageMembersContact.dbId, {
+                    members: JSON.stringify(groupMembersEmails)
+                  });
+                  setIsSavingMembers(false);
+                  if (res.success) {
+                    addToast("Group members updated successfully", "success");
+                    setManageMembersContact(null);
+                    router.refresh();
+                  } else {
+                    addToast(res.error || "Failed to update members", "error");
+                  }
+                }}
+                disabled={isSavingMembers}
+                className="px-6 py-2.5 rounded-md bg-jj-accent text-white hover:opacity-90 transition-opacity text-[13px] font-semibold"
+              >
+                {isSavingMembers ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Upload Confirmation Modal */}
+      {pendingUploadFile && (
+        <div className="modal-shell">
+          <style dangerouslySetInnerHTML={{__html: `
+            .confirm-upload-modal {
+              width: calc(100vw - 32px) !important;
+              max-width: 380px !important;
+              padding: 16px !important;
+              display: flex !important;
+              flex-direction: column !important;
+              gap: 12px !important;
+              box-sizing: border-box !important;
+            }
+            @media (min-width: 641px) and (max-width: 1024px) {
+              .confirm-upload-modal {
+                max-width: 90vw !important;
+              }
+            }
+          `}} />
+          <div className="modal confirm-upload-modal">
+            <div className="flex items-center justify-between" style={{ marginBottom: 0 }}>
+              <h3 className="text-base font-bold text-jj-text flex items-center gap-2" style={{ margin: 0 }}>
+                <Paperclip size={16} className="text-jj-accent" />
+                Confirm Upload
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPendingUploadFile(null)}
+                className="modal-close"
+                style={{ margin: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div 
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "10px 12px",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                width: "100%",
+                boxSizing: "border-box",
+                transition: "all 0.2s ease",
+              }}
+              className="hover:bg-white/[0.02]"
+            >
+              {pendingUploadFile.isImg ? (
+                <div style={{ width: "40px", height: "40px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, border: "1px solid var(--border)" }}>
+                  <img
+                    src={pendingUploadFile.dataUri}
+                    alt="Upload preview"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
+              ) : (
+                <div 
+                  style={{ 
+                    width: "40px", 
+                    height: "40px", 
+                    borderRadius: "8px", 
+                    backgroundColor: "rgba(245, 158, 11, 0.1)", 
+                    border: "1px solid rgba(245, 158, 11, 0.25)",
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    flexShrink: 0 
+                  }}
+                >
+                  <FileText size={18} className="text-jj-accent" />
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                <div 
+                  style={{ 
+                    fontSize: "14.5px", 
+                    fontWeight: 600, 
+                    lineHeight: 1.4, 
+                    color: "var(--text)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  {pendingUploadFile.fileName}
+                </div>
+                <div 
+                  style={{ 
+                    fontSize: "12px", 
+                    opacity: 0.7, 
+                    marginTop: "2px",
+                    color: "var(--text-muted)"
+                  }}
+                >
+                  {(pendingUploadFile.fileSize / (1024 * 1024)).toFixed(2)} MB
+                </div>
+              </div>
+            </div>
+
+            <div 
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: "10px",
+                marginTop: "12px",
+                width: "100%"
+              }}
+            >
+              <button
+                onClick={() => setPendingUploadFile(null)}
+                style={{
+                  height: "32px",
+                  minWidth: "80px",
+                  padding: "0 12px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  lineHeight: "1",
+                  boxSizing: "border-box",
+                  background: "transparent",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s"
+                }}
+                className="hover:bg-white/[0.04]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const { fileName, dataUri, isImg } = pendingUploadFile;
+                  setPendingUploadFile(null);
+                  const prefix = isImg ? `[img:${fileName}]` : `[file:${fileName}]`;
+                  await handleSend(prefix + dataUri);
+                  addToast("Attachment uploaded successfully!", "success");
+                }}
+                style={{
+                  height: "32px",
+                  minWidth: "80px",
+                  padding: "0 12px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  lineHeight: "1",
+                  boxSizing: "border-box",
+                  background: "#f5a300",
+                  border: "none",
+                  color: "#fff",
+                  cursor: "pointer",
+                  transition: "opacity 0.2s"
+                }}
+                className="hover:opacity-90"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

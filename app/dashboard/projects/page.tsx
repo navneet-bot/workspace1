@@ -33,12 +33,18 @@ export default async function ProjectsPage() {
     orderBy: { createdAt: "desc" }
   }).catch(() => []);
 
+  const allUsers = await prisma.user.findMany({
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: { name: "asc" }
+  }).catch(() => []);
+
   return (
     <div className="page-stack">
       <ProjectsGrid 
-        initialProjects={projects} 
+        initialProjects={projects as any} 
         canManage={canManage}
         currentUserEmail={userEmail}
+        allUsers={allUsers}
       />
     </div>
   );

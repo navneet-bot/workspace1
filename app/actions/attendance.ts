@@ -3,7 +3,13 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function markAttendance(email: string, status: string, date: string) {
+export async function markAttendance(
+  email: string,
+  status: string,
+  date: string,
+  leaveType?: string,
+  leaveReason?: string
+) {
   try {
     const existing = await prisma.attendance.findFirst({
       where: {
@@ -36,9 +42,13 @@ export async function markAttendance(email: string, status: string, date: string
         }
       }
 
+      const updateData: any = { status };
+      if (leaveType !== undefined) updateData.leaveType = leaveType;
+      if (leaveReason !== undefined) updateData.leaveReason = leaveReason;
+
       await prisma.attendance.update({
         where: { id: existing.id },
-        data: { status },
+        data: updateData,
       });
     } else {
       await prisma.attendance.create({
@@ -46,8 +56,58 @@ export async function markAttendance(email: string, status: string, date: string
           email,
           status,
           date,
+          leaveType: leaveType || null,
+          leaveReason: leaveReason || null,
         },
       });
+    }
+
+    if (status === "Leave Requested") {
+      // Find the user's name
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { name: true }
+      });
+      const userName = user?.name || email.split("@")[0];
+
+      // Find projects where user is a member
+      const projects = await prisma.project.findMany();
+      const userProjects = projects.filter(p => {
+        try {
+          const members = JSON.parse(p.members || "[]");
+          return Array.isArray(members) && members.includes(email);
+        } catch {
+          return false;
+        }
+      });
+      
+      const managerEmails = userProjects
+        .map(p => p.managerEmail)
+        .filter((m): m is string => typeof m === "string" && m.trim() !== "");
+
+      let targetEmails = managerEmails;
+      if (targetEmails.length === 0) {
+        // Fallback: Notify all admins, super_admins, and tutors
+        const admins = await prisma.user.findMany({
+          where: {
+            role: { in: ["admin", "super_admin", "tutor"] }
+          },
+          select: { email: true }
+        });
+        targetEmails = admins.map(a => a.email).filter(Boolean);
+      }
+
+      // Send notifications
+      for (const tEmail of targetEmails) {
+        await prisma.notification.create({
+          data: {
+            title: "🏖 New Leave Request",
+            body: `${userName} requested leave for ${date}.${leaveType ? ` Type: ${leaveType}.` : ""}${leaveReason ? ` Reason: ${leaveReason}` : ""}`,
+            icon: "🏖",
+            targetEmail: tEmail
+          }
+        });
+      }
     }
 
     revalidatePath("/dashboard/attendance");
@@ -83,7 +143,9 @@ export async function getPendingLeaves() {
         email: p.email,
         name: userMap.get(p.email || "") || p.email?.split("@")[0] || "Unknown",
         date: p.date,
-        status: p.status
+        status: p.status,
+        leaveType: p.leaveType,
+        leaveReason: p.leaveReason
       }))
     };
   } catch (error: any) {

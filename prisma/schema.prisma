@@ -49,6 +49,8 @@ model Project {
   progress    Int      @default(0) // 0-100
   color       String   @default("#3b82f6")
   members     String   @default("") // JSON list of emails
+  managerEmail String   @default("")
+  deadline    String   @default("")
   createdBy   String?
   createdAt   DateTime @default(now())
 
@@ -83,6 +85,8 @@ model Attendance {
   breakStartTime      String?
   breakEndTime        String?
   totalBreakDuration  Int      @default(0)
+  leaveType           String?
+  leaveReason         String?
 
   @@map("attendance")
 }

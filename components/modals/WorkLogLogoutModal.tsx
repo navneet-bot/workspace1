@@ -45,6 +45,23 @@ export function WorkLogLogoutModal() {
     }
   }, [isWorkLogModalOpen]);
 
+  useEffect(() => {
+    if (startedAt && completedAt) {
+      const [startHour, startMin] = startedAt.split(':').map(Number);
+      const [endHour, endMin] = completedAt.split(':').map(Number);
+      
+      let startInMinutes = startHour * 60 + (startMin || 0);
+      let endInMinutes = endHour * 60 + (endMin || 0);
+      
+      if (endInMinutes < startInMinutes) {
+        endInMinutes += 24 * 60;
+      }
+      
+      const diffInHours = Math.max(0, (endInMinutes - startInMinutes) / 60);
+      setHoursWorked(diffInHours.toFixed(1).replace(/\.0$/, ''));
+    }
+  }, [startedAt, completedAt]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

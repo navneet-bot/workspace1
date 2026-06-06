@@ -3,7 +3,8 @@
 import { useUIStore } from "@/hooks/useUIStore";
 import { useState, useRef } from "react";
 import { submitReport, reviewReport, updateReport, deleteReport } from "@/app/actions/reports";
-import { Paperclip, X, Pencil, Trash2 } from "lucide-react";
+import { Paperclip, X, Pencil, Trash2, Eye } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
 
 interface Report {
   id: number;
@@ -22,11 +23,13 @@ export function ReportsView({
   currentUserEmail,
   canManage,
   reviewers,
+  currentUserRole,
 }: {
   reports: Report[];
   currentUserEmail: string;
   canManage: boolean;
   reviewers?: { name: string | null; email: string | null; role: string }[];
+  currentUserRole?: string;
 }) {
   const { addToast } = useUIStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +41,15 @@ export function ReportsView({
   const [fileData, setFileData] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedReviewers, setSelectedReviewers] = useState<string[]>([]);
+
+  // Document preview states
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewFileData, setPreviewFileData] = useState("");
+
+  // Filtering states
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "super_admin";
+  const [filter, setFilter] = useState<"all" | "assigned">(isAdmin ? "all" : "assigned");
 
   // Edit State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
@@ -202,6 +214,18 @@ export function ReportsView({
     }
   };
 
+  const filteredReports = reportsList.filter((r) => {
+    if (filter === "assigned") {
+      try {
+        const targetEmails = r.submittedTo ? JSON.parse(r.submittedTo) : [];
+        return Array.isArray(targetEmails) && targetEmails.includes(currentUserEmail);
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  });
+
   return (
     <div className="page-stack">
       {!canManage && (
@@ -290,10 +314,32 @@ export function ReportsView({
       )}
 
       <div className="table-card">
-        <div className="table-card-header">
-          <h3>
-            {canManage ? "All Reports" : "My Reports"}
-          </h3>
+        <div className="table-card-header" style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+            <h3 style={{ margin: 0 }}>
+              {canManage ? "Reports Dashboard" : "My Reports"}
+            </h3>
+            {isAdmin && (
+              <div className="settings-tabs" style={{ margin: 0, padding: 0, border: "none" }}>
+                <button
+                  onClick={() => setFilter("all")}
+                  className={`settings-tab ${filter === "all" ? "active" : ""}`}
+                  style={{ padding: "6px 14px", fontSize: "12.5px" }}
+                  type="button"
+                >
+                  All Reports
+                </button>
+                <button
+                  onClick={() => setFilter("assigned")}
+                  className={`settings-tab ${filter === "assigned" ? "active" : ""}`}
+                  style={{ padding: "6px 14px", fontSize: "12.5px" }}
+                  type="button"
+                >
+                  Assigned To Me
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={exportReports}
             className="btn-sm btn-outline"
@@ -317,14 +363,14 @@ export function ReportsView({
               </tr>
             </thead>
             <tbody>
-              {reportsList.length === 0 ? (
+              {filteredReports.length === 0 ? (
                 <tr>
                   <td colSpan={canManage ? 7 : 6} style={{ textAlign: "center", padding: "20px", color: "var(--text-muted)" }}>
                     No reports yet
                   </td>
                 </tr>
               ) : (
-                reportsList.map((r) => (
+                filteredReports.map((r) => (
                   <tr key={r.id}>
                     <td>
                       <strong>{r.submittedBy || "Unknown"}</strong>
@@ -351,12 +397,40 @@ export function ReportsView({
                     </td>
                     <td>
                       {r.fileName && r.fileData ? (
-                        <button
-                          onClick={() => downloadFile(r.fileName, r.fileData)}
-                          className="action-btn action-view"
-                        >
-                          📥 {r.fileName}
-                        </button>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" }}>
+                          <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--text)" }} className="truncate max-w-[150px]" title={r.fileName}>
+                            📄 {r.fileName}
+                          </span>
+                          <div style={{ display: "flex", gap: "10px" }}>
+                            {(() => {
+                              const nameLower = r.fileName.toLowerCase();
+                              const isViewable = nameLower.endsWith(".pdf") || nameLower.endsWith(".docx") || nameLower.endsWith(".txt") || nameLower.endsWith(".csv");
+                              if (isViewable) {
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      setPreviewFileName(r.fileName);
+                                      setPreviewFileData(r.fileData);
+                                      setPreviewOpen(true);
+                                    }}
+                                    className="hover:underline cursor-pointer bg-transparent border-none p-0 text-jj-accent font-bold text-[11px]"
+                                    type="button"
+                                  >
+                                    View
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()}
+                            <button
+                              onClick={() => downloadFile(r.fileName, r.fileData)}
+                              className="hover:underline cursor-pointer bg-transparent border-none p-0 text-jj-accent font-bold text-[11px]"
+                              type="button"
+                            >
+                              Download
+                            </button>
+                          </div>
+                        </div>
                       ) : r.fileName ? (
                         <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>📄 {r.fileName}</span>
                       ) : (
@@ -501,6 +575,13 @@ export function ReportsView({
           </div>
         </div>
       )}
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        fileName={previewFileName}
+        fileData={previewFileData}
+      />
     </div>
   );
 }
