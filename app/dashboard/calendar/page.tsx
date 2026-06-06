@@ -54,13 +54,19 @@ export default async function CalendarPage() {
 
   meetings.forEach(m => {
     if (m.date) {
+      const meetingTime = m.time
+        ? m.endTime
+          ? `${m.time} - ${m.endTime} (${m.duration ?? 30} mins)`
+          : m.time
+        : undefined;
+
       events.push({
         type: "meeting",
         label: "📅 " + m.title,
         color: "#f59e0b",
         dateStr: m.date,
         extra: { 
-          time: m.endTime ? `${m.time} - ${m.endTime} (${m.duration || 30} mins)` : m.time,
+          time: meetingTime,
           description: m.description, 
           link: m.meetLink 
         }
