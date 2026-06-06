@@ -27,7 +27,7 @@ export function HeaderControls({ userEmail, unreadCount }: { userEmail: string, 
 
   return (
     <div className="flex items-center gap-3">
-      <Link href="/dashboard/notifications" className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-jj-border bg-jj-surface text-jj-text-soft transition-all duration-200 hover:border-jj-accent hover:text-jj-accent">
+      <Link href="/dashboard/notifications" prefetch className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-jj-border bg-jj-surface text-jj-text-soft transition-all duration-200 hover:border-jj-accent hover:text-jj-accent">
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
           <div className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-[1.5px] border-jj-bg bg-jj-accent" />
@@ -49,6 +49,7 @@ export function HeaderControls({ userEmail, unreadCount }: { userEmail: string, 
             </div>
             <Link
               href="/dashboard/settings"
+              prefetch
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-[13px] font-semibold text-jj-text hover:bg-jj-surface2 transition-colors"
             >

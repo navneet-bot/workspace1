@@ -29,7 +29,8 @@ export async function GET(req: Request) {
       select: {
         id: true,
         name: true,
-        email: true
+        email: true,
+        createdAt: true
       },
       orderBy: {
         name: "asc"
@@ -89,18 +90,21 @@ export async function GET(req: Request) {
     const parts = dateStr.split("-").map(Number);
     const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
     const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 6 = Saturday
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isWeekend = dayOfWeek === 0;
     const isFuture = dateStr > todayStr;
 
     // Construct response matching the requested schema
     const responseData = users.map((u) => {
       const email = u.email;
+      const joiningDate = u.createdAt.toISOString().split("T")[0];
       let status = attendanceMap.get(email);
-      if (!status) {
+      if (dateStr < joiningDate) {
+        status = "Not Joined Yet";
+      } else if (isWeekend) {
+        status = "Weekend";
+      } else if (!status) {
         if (isFuture) {
           status = "Not Marked";
-        } else if (isWeekend) {
-          status = "Weekend";
         } else {
           status = "Absent";
         }

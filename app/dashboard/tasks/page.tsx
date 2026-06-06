@@ -20,14 +20,25 @@ export default async function TasksPage() {
     redirect("/dashboard");
   }
 
-  const tasks = await prisma.task.findMany({
-    orderBy: { createdAt: "desc" }
-  }).catch(() => []);
+  const [tasks, users] = await Promise.all([
+    prisma.task.findMany({
+      orderBy: { createdAt: "desc" }
+    }).catch(() => []),
+    prisma.user.findMany({
+      select: { id: true, name: true, username: true, email: true }
+    }).catch(() => [])
+  ]);
+
+  const userByEmail = new Map(users.map((user) => [user.email, user]));
+  const tasksWithAssignees = tasks.map((task) => ({
+    ...task,
+    assignee: task.assignedTo ? userByEmail.get(task.assignedTo) || null : null,
+  }));
 
   return (
     <div className="page-stack">
       <div className="table-card">
-        <TasksTable initialTasks={tasks} />
+        <TasksTable initialTasks={tasksWithAssignees} assigneeUsers={users} />
       </div>
     </div>
   );

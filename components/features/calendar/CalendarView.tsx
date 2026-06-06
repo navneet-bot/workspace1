@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalIcon, X } from "lucide-react";
+import { Calendar as CalIcon, X } from "lucide-react";
 
 interface CalendarEvent {
   type: string;
@@ -14,7 +14,7 @@ interface CalendarEvent {
     created_by?: string;
     time?: string;
     link?: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
   };
 }
 
@@ -52,6 +52,10 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
 
   const tasksThisMonth = events.filter(
     (e) => e.type === "task" && e.dateStr && e.dateStr.startsWith(monthPrefix)
+  ).length;
+
+  const projectDeadlinesThisMonth = events.filter(
+    (e) => e.type === "project" && e.dateStr && e.dateStr.startsWith(monthPrefix)
   ).length;
 
   const completedTasksTotal = events.filter(
@@ -250,6 +254,10 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
             <div className="flex justify-between items-center">
               <span className="text-[12.5px] text-jj-text-muted">📋 Task Deadlines</span>
               <span className="font-bold text-[#3b82f6]">{tasksThisMonth}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[12.5px] text-jj-text-muted">🚀 Project Deadlines</span>
+              <span className="font-bold" style={{ color: "#A855F7" }}>{projectDeadlinesThisMonth}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[12.5px] text-jj-text-muted">✅ Completed Tasks</span>

@@ -18,22 +18,38 @@ export default async function ChatPage({
   const resolvedParams = await searchParams;
   const select = resolvedParams?.select || null;
 
-  const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email }
-  }).catch(() => null);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${year}-${month}-${day}`;
+
+  const [currentUser, users, allGroups, todayAttendance, todayWorkLogs] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, name: true, email: true, role: true }
+    }).catch(() => null),
+    prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: "asc" }
+    }).catch(() => []),
+    prisma.group.findMany({
+      select: { id: true, name: true, description: true, icon: true, members: true, createdBy: true, createdAt: true },
+      orderBy: { name: "asc" }
+    }).catch(() => []),
+    prisma.attendance.findMany({
+      where: { date: todayStr },
+      select: { email: true, status: true }
+    }).catch(() => []),
+    prisma.workLog.findMany({
+      where: { date: todayStr },
+      select: { email: true }
+    }).catch(() => []),
+  ]);
 
   if (!currentUser) {
     redirect("/login");
   }
-
-  const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true },
-    orderBy: { name: "asc" }
-  }).catch(() => []);
-
-  const allGroups = await prisma.group.findMany({
-    orderBy: { name: "asc" }
-  }).catch(() => []);
 
   // Only show groups where the current user is a member
   const groups = allGroups.filter(g => {
@@ -55,21 +71,6 @@ export default async function ChatPage({
     createdBy: g.createdBy,
     createdAt: g.createdAt.toISOString()
   }));
-
-  // Fetch today's attendance and work logs to determine who is active/online
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${year}-${month}-${day}`;
-
-  const todayAttendance = await prisma.attendance.findMany({
-    where: { date: todayStr }
-  }).catch(() => []);
-
-  const todayWorkLogs = await prisma.workLog.findMany({
-    where: { date: todayStr }
-  }).catch(() => []);
 
   const activeEmailsSet = new Set<string>();
 

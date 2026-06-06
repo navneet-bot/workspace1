@@ -4,7 +4,7 @@ import prisma from "@/lib/db";
 
 export async function getUsersForSelect() {
   const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, username: true, email: true },
     orderBy: { name: "asc" },
   });
   return users;

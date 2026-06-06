@@ -3,6 +3,19 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+function getProjectManagerEmails(managerEmail?: string | null) {
+  if (!managerEmail) return [];
+  try {
+    const parsed = JSON.parse(managerEmail);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((email): email is string => typeof email === "string" && email.trim() !== "");
+    }
+  } catch {
+    // Older projects stored one manager email directly.
+  }
+  return managerEmail.trim() ? [managerEmail] : [];
+}
+
 export async function submitReport(data: {
   title: string;
   description: string;
@@ -16,7 +29,9 @@ export async function submitReport(data: {
 
     // Find projects where the user is a member and retrieve the manager's email
     if (data.submittedBy) {
-      const projects = await prisma.project.findMany();
+      const projects = await prisma.project.findMany({
+        select: { members: true, managerEmail: true }
+      });
       const userProjects = projects.filter(p => {
         try {
           const members = JSON.parse(p.members || "[]");
@@ -26,8 +41,7 @@ export async function submitReport(data: {
         }
       });
       const managerEmails = userProjects
-        .map(p => p.managerEmail)
-        .filter((email): email is string => typeof email === "string" && email.trim() !== "");
+        .flatMap(p => getProjectManagerEmails(p.managerEmail));
       if (managerEmails.length > 0) {
         targetEmails = Array.from(new Set([...targetEmails, ...managerEmails]));
       }
@@ -38,7 +52,8 @@ export async function submitReport(data: {
       const admins = await prisma.user.findMany({
         where: {
           role: { in: ["admin", "super_admin", "tutor"] }
-        }
+        },
+        select: { email: true }
       });
       targetEmails = admins.map(a => a.email).filter(Boolean) as string[];
     }
@@ -110,4 +125,3 @@ export async function deleteReport(id: number) {
     return { success: false, error: "Failed to delete report" };
   }
 }
-

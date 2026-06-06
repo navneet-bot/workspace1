@@ -39,20 +39,25 @@ function calculateUserProductivity(
   const todayStr = nowKolkata.toISOString().split("T")[0];
 
   const start = new Date(user.createdAt || new Date());
+  start.setHours(0, 0, 0, 0);
+  const joiningDate = start.toISOString().split("T")[0];
   const elapsedWeekdays: string[] = [];
   const cur = new Date(start);
-  cur.setHours(0, 0, 0, 0);
   const end = new Date(nowKolkata);
   end.setHours(0, 0, 0, 0);
   while (cur <= end) {
     const day = cur.getDay();
-    if (day !== 0 && day !== 6) {
+    if (day !== 0) {
       elapsedWeekdays.push(cur.toISOString().split("T")[0]);
     }
     cur.setDate(cur.getDate() + 1);
   }
 
-  const userAtt = attendance.filter((a) => a.email === email);
+  const userAtt = attendance.filter((a) => {
+    if (a.email !== email || !a.date || a.date < joiningDate) return false;
+    const [year, month, day] = a.date.split("-").map(Number);
+    return new Date(year, month - 1, day).getDay() !== 0;
+  });
   const attMap = new Map<string, string>();
   userAtt.forEach(a => {
     if (a.date) attMap.set(a.date, a.status);
@@ -78,7 +83,13 @@ function calculateUserProductivity(
   const attendanceRate = totalDays > 0 ? present / totalDays : 1.0;
 
   // Late check-ins calculation
-  const userLogs = workLogs.filter((wl) => wl.email === email);
+  const userLogs = workLogs.filter((wl) => {
+    if (wl.email !== email) return false;
+    if (!wl.date) return true;
+    if (wl.date < joiningDate) return false;
+    const [year, month, day] = wl.date.split("-").map(Number);
+    return new Date(year, month - 1, day).getDay() !== 0;
+  });
   let lateCount = 0;
   userLogs.forEach((wl) => {
     if (wl.loginTime) {

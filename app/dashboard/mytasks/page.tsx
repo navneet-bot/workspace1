@@ -10,14 +10,20 @@ export default async function MyTasksPage() {
     return null; // Layout handles redirect
   }
 
-  const tasks = await prisma.task.findMany({
-    where: { assignedTo: session.user.email },
-    orderBy: { createdAt: "desc" }
-  }).catch(() => []);
+  const [tasks, currentUser] = await Promise.all([
+    prisma.task.findMany({
+      where: { assignedTo: session.user.email },
+      orderBy: { createdAt: "desc" }
+    }).catch(() => []),
+    prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, name: true, username: true, email: true },
+    }).catch(() => null),
+  ]);
 
   return (
     <div className="page-stack">
-      <MyTasksKanban initialTasks={tasks} />
+      <MyTasksKanban initialTasks={tasks} currentUser={currentUser} />
     </div>
   );
 }

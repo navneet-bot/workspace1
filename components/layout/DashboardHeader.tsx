@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, startTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Menu, Moon, Sun } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useUIStore } from "@/hooks/useUIStore";
 import { getUserNotifications, markRead } from "@/app/actions/notifications";
 import Link from "next/link";
@@ -69,7 +69,6 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
     setMobileSidebarOpen,
     isNotifPopupOpen,
     setNotifPopupOpen,
-    addToast,
     liveNotifs,
     addLiveNotif,
     removeLiveNotif
@@ -77,22 +76,19 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return "dark";
+    return localStorage.getItem("jj_theme") === "light" ? "light" : "dark";
+  });
   
   const notifRef = useRef<HTMLDivElement>(null);
   const lastCountRef = useRef(-1);
+  const loadingNotificationsRef = useRef(false);
 
-  // Sync theme
   useEffect(() => {
-    const savedTheme = localStorage.getItem("jj_theme") || "dark";
-    if (savedTheme === "light") {
-      document.body.classList.add("light-mode");
-      setTheme("light");
-    } else {
-      document.body.classList.remove("light-mode");
-      setTheme("dark");
-    }
-  }, []);
+    document.body.classList.toggle("light-mode", theme === "light");
+    localStorage.setItem("jj_theme", theme);
+  }, [theme]);
 
   const toggleTheme = () => {
     if (theme === "dark") {
@@ -109,7 +105,10 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
   // Synthesize beep sound
   const playNotifSound = () => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioWindow = window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+      const AudioCtor = audioWindow.AudioContext || audioWindow.webkitAudioContext;
+      if (!AudioCtor) return;
+      const ctx = new AudioCtor();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -120,15 +119,20 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.35);
-    } catch (e) {}
+    } catch {
+      return;
+    }
   };
 
   // Poll Notifications
   const loadNotifications = async () => {
-    if (!userEmail) return;
-    const res = await getUserNotifications(userEmail);
-    if (res.success && res.notifications) {
-      const allNotifs = res.notifications as Notification[];
+    if (!userEmail || loadingNotificationsRef.current || document.hidden) return;
+
+    loadingNotificationsRef.current = true;
+    try {
+      const res = await getUserNotifications(userEmail);
+      if (res.success && res.notifications) {
+        const allNotifs = res.notifications as Notification[];
       
       // Calculate unread count specifically for this user
       // A notification is unread if its read property is false AND the user has not seen it yet (not in seenBy JSON array)
@@ -160,6 +164,9 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
         });
       }
       lastCountRef.current = unread;
+      }
+    } finally {
+      loadingNotificationsRef.current = false;
     }
   };
 
@@ -304,6 +311,7 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
               <div className="notif-popup-footer">
                 <Link
                   href="/dashboard/notifications"
+                  prefetch
                   onClick={() => setNotifPopupOpen(false)}
                   className="text-jj-accent text-[12.5px] hover:underline"
                 >
@@ -322,7 +330,9 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
             key={n.id}
             onClick={() => {
               removeLiveNotif(n.id);
-              router.push("/dashboard/notifications");
+              startTransition(() => {
+                router.push("/dashboard/notifications");
+              });
             }}
             className="live-notif pointer-events-auto"
           >

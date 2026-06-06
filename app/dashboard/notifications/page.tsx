@@ -12,7 +12,8 @@ export default async function NotificationsPage() {
   }
 
   const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { email: session.user.email },
+    select: { id: true, name: true, email: true, role: true, permissions: true }
   }).catch(() => null);
 
   if (!currentUser) {
@@ -29,7 +30,9 @@ export default async function NotificationsPage() {
         { targetEmail: currentUser.email }
       ]
     },
-    orderBy: { createdAt: "desc" }
+    select: { id: true, title: true, body: true, icon: true, targetEmail: true, read: true, seenBy: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 50
   }).catch(() => []);
 
   const users = await prisma.user.findMany({
@@ -40,19 +43,30 @@ export default async function NotificationsPage() {
   // Calculate local read state (because read/seenBy is technically shared in this simple DB model)
   // In the legacy system, a notification is marked read globally when ANYONE reads it, or locally based on seenBy.
   // We'll update the `read` flag for the UI based on seenBy to make it user-specific.
-  const userNotifs = notifications.map(n => {
+  const userNotifs: {
+    id: number;
+    title: string;
+    body: string;
+    icon: string;
+    targetEmail: string;
+    read: boolean;
+    seenBy: string;
+    createdAt: string;
+  }[] = notifications.map((n) => {
     let seenBy: string[] = [];
     try { seenBy = JSON.parse(n.seenBy || "[]"); } catch {}
     return {
       ...n,
       read: seenBy.includes(currentUser.email)
+      ,
+      createdAt: n.createdAt.toISOString()
     };
   });
 
   return (
     <div className="page-stack">
       <NotificationsList 
-        initialNotifications={userNotifs as any} 
+        initialNotifications={userNotifs}
         allUsers={users}
         currentUserEmail={currentUser.email}
         canSend={canSend}

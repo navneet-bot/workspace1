@@ -20,19 +20,19 @@ export default async function ProductivityPage() {
     redirect("/dashboard"); // Only admin/super_admin can view productivity
   }
 
-  const stats = await getAllInternsProductivity().catch(() => []);
-
-  // Compute team-wide break stats
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const todayBreaksCount = await prisma.breakRequest.count({
-    where: { createdAt: { gte: todayStart } }
-  }).catch(() => 0);
-
-  const approvedBreaks = await prisma.breakRequest.findMany({
-    where: { status: { in: ["approved", "expired"] } }
-  }).catch(() => []);
+  const [stats, todayBreaksCount, approvedBreaks] = await Promise.all([
+    getAllInternsProductivity().catch(() => []),
+    prisma.breakRequest.count({
+      where: { createdAt: { gte: todayStart } }
+    }).catch(() => 0),
+    prisma.breakRequest.findMany({
+      where: { status: { in: ["approved", "expired"] } },
+      select: { userEmail: true, userName: true, duration: true },
+    }).catch(() => []),
+  ]);
 
   const totalBreaksCount = approvedBreaks.length;
   const totalBreakMinutes = approvedBreaks.reduce((sum, b) => sum + b.duration, 0);

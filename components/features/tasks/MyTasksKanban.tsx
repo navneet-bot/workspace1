@@ -11,11 +11,25 @@ interface Task {
   status: string;
   priority: string;
   deadline: string;
+  assignedTo?: string | null;
 }
 
-export function MyTasksKanban({ initialTasks }: { initialTasks: Task[] }) {
+interface AssigneeUser {
+  id: number;
+  name: string | null;
+  username: string | null;
+  email: string;
+}
+
+function getAssigneeLabel(user?: AssigneeUser | null, email?: string | null) {
+  if (!user && !email) return "";
+  return user?.name?.trim() || user?.username?.trim() || (user?.id ? `User #${user.id}` : "") || email || "";
+}
+
+export function MyTasksKanban({ initialTasks, currentUser }: { initialTasks: Task[]; currentUser?: AssigneeUser | null }) {
   const { addToast } = useUIStore();
   const [tasks, setTasks] = useState(initialTasks);
+  const assigneeLabel = getAssigneeLabel(currentUser, currentUser?.email);
 
   const pending = tasks.filter((t) => t.status === "Pending");
   const inProg = tasks.filter((t) => t.status === "In Progress");
@@ -75,6 +89,15 @@ export function MyTasksKanban({ initialTasks }: { initialTasks: Task[] }) {
         {prioritySpan(t.priority)}
         <span className="task-due">📅 {t.deadline}</span>
       </div>
+
+      {assigneeLabel ? (
+        <div className="mb-3 text-[12px] font-semibold text-jj-text-main">
+          {assigneeLabel}
+          {currentUser?.email ? (
+            <div className="mt-0.5 text-[11px] font-normal text-jj-text-muted">{currentUser.email}</div>
+          ) : null}
+        </div>
+      ) : null}
       
       <div>
         <select

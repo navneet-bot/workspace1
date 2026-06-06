@@ -18,7 +18,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" }
     });
 
-    return Response.json(tasks);
+    const assigneeEmails = Array.from(new Set(tasks.map((task) => task.assignedTo).filter(Boolean) as string[]));
+    const users = assigneeEmails.length
+      ? await prisma.user.findMany({
+          where: { email: { in: assigneeEmails } },
+          select: { id: true, name: true, username: true, email: true },
+        })
+      : [];
+    const userByEmail = new Map(users.map((user) => [user.email, user]));
+
+    return Response.json(tasks.map((task) => ({
+      ...task,
+      assignee: task.assignedTo ? userByEmail.get(task.assignedTo) || null : null,
+    })));
   } catch (error) {
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }

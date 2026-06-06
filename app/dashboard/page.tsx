@@ -1,12 +1,19 @@
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { DashboardCharts } from "@/components/features/dashboard/DashboardCharts";
 import { DashboardHeaderActions } from "@/components/features/dashboard/DashboardHeaderActions";
 import { BreakCountdownWidget } from "@/components/features/breaks/BreakCountdownWidget";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { getInternProductivityDetails } from "@/app/actions/productivity";
 import { CheckCircle, Briefcase, Calendar, BookOpen, Star, ShieldAlert } from "lucide-react";
+
+const DashboardCharts = dynamic(
+  () => import("@/components/features/dashboard/DashboardCharts").then((mod) => mod.DashboardCharts),
+  {
+    loading: () => <div className="chart-card min-h-[260px] animate-pulse bg-[rgba(255,255,255,0.02)]" />,
+  }
+);
 
 const COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4"];
 
@@ -47,6 +54,10 @@ function roleLabel(role: string) {
   return { admin: "admin", super_admin: "super admin", tutor: "tutor", intern: "intern" }[role as "admin"] || role;
 }
 
+function assigneeLabel(user: { id?: number; name?: string | null; username?: string | null; email?: string | null } | null | undefined, email?: string | null) {
+  return user?.name?.trim() || user?.username?.trim() || (user?.id ? `User #${user.id}` : "") || email || "";
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const userEmail = session?.user?.email;
@@ -57,34 +68,43 @@ export default async function DashboardPage() {
   const showInternDashboard = userRole === "intern" || userRole === "tutor" || (userRole === "super_admin" && !hasSuperAdminAccess);
 
   if (showInternDashboard && userEmail) {
-    const [tasks, attendance, groups, notifications, prodDetails] = await Promise.all([
+    const [tasks, attendance, groups, notifications, prodDetails, activeBreakRes, userProfile] = await Promise.all([
       prisma.task.findMany({
         where: { assignedTo: userEmail },
+        select: { status: true },
         orderBy: { createdAt: "desc" },
       }).catch(() => []),
       prisma.attendance.findMany({
         where: { email: userEmail },
+        select: { date: true, status: true, email: true },
       }).catch(() => []),
       prisma.group.findMany({
+        select: { id: true, name: true, description: true, icon: true, members: true, createdAt: true },
         orderBy: { createdAt: "desc" },
       }).catch(() => []),
       prisma.notification.findMany({
         where: {
           OR: [{ targetEmail: "ALL" }, { targetEmail: userEmail }],
         },
+        select: { read: true, seenBy: true, createdAt: true, targetEmail: true },
         orderBy: { createdAt: "desc" },
+        take: 20,
       }).catch(() => []),
       getInternProductivityDetails(userEmail),
+      prisma.breakRequest.findFirst({
+        where: {
+          userEmail,
+          status: "approved",
+        },
+        select: { duration: true, reason: true, approvedAt: true },
+      }).catch(() => null),
+      prisma.user.findUnique({
+        where: { email: userEmail },
+        select: { createdAt: true },
+      }).catch(() => null),
     ]);
 
     // Fetch active break directly
-    const activeBreakRes = await prisma.breakRequest.findFirst({
-      where: {
-        userEmail,
-        status: "approved",
-      },
-    });
-
     let activeBreak = null;
     if (activeBreakRes && activeBreakRes.approvedAt) {
       const approvedTime = new Date(activeBreakRes.approvedAt);
@@ -105,10 +125,6 @@ export default async function DashboardPage() {
     const completed = tasks.filter((task) => task.status === "Completed").length;
     const total = tasks.length;
 
-    const userProfile = await prisma.user.findUnique({
-      where: { email: userEmail },
-      select: { createdAt: true }
-    });
     const userCreatedAt = userProfile?.createdAt || new Date();
 
     const nowKolkata = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
@@ -117,24 +133,30 @@ export default async function DashboardPage() {
     const elapsedWeekdays: string[] = [];
     const cur = new Date(userCreatedAt);
     cur.setHours(0, 0, 0, 0);
+    const joiningDateISO = cur.toISOString().split("T")[0];
     const end = new Date(nowKolkata);
     end.setHours(0, 0, 0, 0);
     while (cur <= end) {
       const day = cur.getDay();
-      if (day !== 0 && day !== 6) {
+      if (day !== 0) {
         elapsedWeekdays.push(cur.toISOString().split("T")[0]);
       }
       cur.setDate(cur.getDate() + 1);
     }
 
-    const present = attendance.filter((row) => row.status === "Present").length;
-    const leave = attendance.filter((row) => row.status === "Leave").length;
+    const trackableAttendance = attendance.filter((row) => {
+      if (!row.date || row.date < joiningDateISO) return false;
+      const [year, month, day] = row.date.split("-").map(Number);
+      return new Date(year, month - 1, day).getDay() !== 0;
+    });
+    const present = trackableAttendance.filter((row) => row.status === "Present").length;
+    const leave = trackableAttendance.filter((row) => row.status === "Leave").length;
     
     // Explicit absent records
-    let absent = attendance.filter((row) => row.status === "Absent").length;
+    let absent = trackableAttendance.filter((row) => row.status === "Absent").length;
     
     // Set of database dates to avoid double counting
-    const loggedDates = new Set(attendance.map(r => r.date));
+    const loggedDates = new Set(trackableAttendance.map(r => r.date));
     
     // Add implicit absent days for past weekdays with no logs
     elapsedWeekdays.forEach(date => {
@@ -262,7 +284,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="stats-grid" style={{ marginBottom: "20px", gridTemplateColumns: "repeat(4, 1fr)" }}>
-          <Link href="/dashboard/mytasks" style={{ textDecoration: "none", color: "inherit" }}>
+          <Link href="/dashboard/mytasks" prefetch style={{ textDecoration: "none", color: "inherit" }}>
             <div className="stat-card amber" style={{ cursor: "pointer" }}>
               <div className="stat-icon amber">
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
@@ -271,7 +293,7 @@ export default async function DashboardPage() {
               <div className="stat-label">Tasks Pending</div>
             </div>
           </Link>
-          <Link href="/dashboard/mytasks" style={{ textDecoration: "none", color: "inherit" }}>
+          <Link href="/dashboard/mytasks" prefetch style={{ textDecoration: "none", color: "inherit" }}>
             <div className="stat-card blue" style={{ cursor: "pointer" }}>
               <div className="stat-icon blue">
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
@@ -280,7 +302,7 @@ export default async function DashboardPage() {
               <div className="stat-label">In Progress</div>
             </div>
           </Link>
-          <Link href="/dashboard/mytasks" style={{ textDecoration: "none", color: "inherit" }}>
+          <Link href="/dashboard/mytasks" prefetch style={{ textDecoration: "none", color: "inherit" }}>
             <div className="stat-card green" style={{ cursor: "pointer" }}>
               <div className="stat-icon green">
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
@@ -289,7 +311,7 @@ export default async function DashboardPage() {
               <div className="stat-label">Completed</div>
             </div>
           </Link>
-          <Link href="/dashboard/notifications" style={{ textDecoration: "none", color: "inherit" }}>
+          <Link href="/dashboard/notifications" prefetch style={{ textDecoration: "none", color: "inherit" }}>
             <div className="stat-card purple" style={{ cursor: "pointer" }}>
               <div className="stat-icon purple">
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg>
@@ -505,7 +527,7 @@ export default async function DashboardPage() {
   return (
     <>
       <div className="stats-grid">
-        <Link href="/dashboard/users" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/dashboard/users" prefetch style={{ textDecoration: "none", color: "inherit" }}>
           <div className="stat-card amber" style={{ cursor: "pointer" }}>
             <div className="stat-icon amber">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
@@ -514,7 +536,7 @@ export default async function DashboardPage() {
             <div className="stat-label">Active Interns</div>
           </div>
         </Link>
-        <Link href="/dashboard/tutors" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/dashboard/tutors" prefetch style={{ textDecoration: "none", color: "inherit" }}>
           <div className="stat-card cyan" style={{ cursor: "pointer" }}>
             <div className="stat-icon cyan">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><polyline points="17 11 19 13 23 9" /></svg>
@@ -523,7 +545,7 @@ export default async function DashboardPage() {
             <div className="stat-label">Active Tutors</div>
           </div>
         </Link>
-        <Link href="/dashboard/tasks" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/dashboard/tasks" prefetch style={{ textDecoration: "none", color: "inherit" }}>
           <div className="stat-card green" style={{ cursor: "pointer" }}>
             <div className="stat-icon green">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
@@ -532,7 +554,7 @@ export default async function DashboardPage() {
             <div className="stat-label">Tasks Completed</div>
           </div>
         </Link>
-        <Link href="/dashboard/projects" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/dashboard/projects" prefetch style={{ textDecoration: "none", color: "inherit" }}>
           <div className="stat-card blue" style={{ cursor: "pointer" }}>
             <div className="stat-icon blue">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>
@@ -541,7 +563,7 @@ export default async function DashboardPage() {
             <div className="stat-label">Active Projects</div>
           </div>
         </Link>
-        <Link href="/dashboard/attendance" style={{ textDecoration: "none", color: "inherit" }}>
+        <Link href="/dashboard/attendance" prefetch style={{ textDecoration: "none", color: "inherit" }}>
           <div className="stat-card purple" style={{ cursor: "pointer" }}>
             <div className="stat-icon purple">
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
@@ -594,6 +616,7 @@ export default async function DashboardPage() {
               {tasks.slice(0, 5).length ? (
                 tasks.slice(0, 5).map((task) => {
                   const assignee = users.find((user) => user.email === task.assignedTo);
+                  const assigneeName = assigneeLabel(assignee, task.assignedTo);
                   return (
                     <tr key={task.id}>
                       <td>
@@ -603,7 +626,16 @@ export default async function DashboardPage() {
                           {task.project || ""}
                         </span>
                       </td>
-                      <td>{assignee?.name || task.assignedTo || "—"}</td>
+                      <td>
+                        {assigneeName ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <strong>{assigneeName}</strong>
+                            {task.assignedTo ? (
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{task.assignedTo}</span>
+                            ) : null}
+                          </div>
+                        ) : "—"}
+                      </td>
                       <td>{prioritySpan(task.priority)}</td>
                       <td>{statusBadge(task.status)}</td>
                       <td>{task.deadline || "TBD"}</td>

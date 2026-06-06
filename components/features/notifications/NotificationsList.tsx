@@ -62,7 +62,7 @@ export function NotificationsList({
       setBody("");
       setIcon("🔔");
       setTarget("ALL");
-      window.location.reload();
+      router.refresh();
     } else {
       addToast(res.error || "Failed to send", "error");
     }

@@ -363,8 +363,7 @@ export function TutorProfileView({ tutor: initialTutor }: { tutor: Tutor }) {
             </h3>
             
             <textarea
-              className="field-textarea"
-              style={{ minHeight: "140px" }}
+              className="field-textarea tutor-eval-textarea"
               placeholder="Write evaluations notes, scheduling info, demo feedback, qualifications assessments here..."
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -414,6 +413,29 @@ export function TutorProfileView({ tutor: initialTutor }: { tutor: Tutor }) {
         </div>
 
       </div>
+
+      <style jsx>{`
+        .tutor-eval-textarea {
+          min-height: 140px;
+          resize: vertical;
+          box-sizing: border-box;
+          padding: 16px 20px;
+          font-size: 16px;
+          line-height: 1.6;
+        }
+
+        .tutor-eval-textarea::placeholder {
+          padding-top: 2px;
+          opacity: 0.6;
+        }
+
+        @media (max-width: 768px) {
+          .tutor-eval-textarea {
+            padding: 14px 16px;
+            font-size: 15px;
+          }
+        }
+      `}</style>
       
     </div>
   );

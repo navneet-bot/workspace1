@@ -21,12 +21,13 @@ import {
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useUIStore } from "@/hooks/useUIStore";
+import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
   id: string;
   name: string;
   href?: string;
-  icon: any;
+  icon: LucideIcon;
   subItems?: { id: string; name: string; href: string }[];
 }
 
@@ -177,7 +178,7 @@ export function Sidebar({ userRole }: { userRole?: string }) {
   
   const { isMobileSidebarOpen, setMobileSidebarOpen, setWorkLogModalOpen } = useUIStore();
 
-  const userPermissions = (session?.user as any)?.permissions || "";
+  const userPermissions = (session?.user as { permissions?: string } | undefined)?.permissions || "";
   const navSections = getNavSections(userRole || "intern", userPermissions);
 
   const handleSignOutClick = () => {
@@ -251,6 +252,7 @@ export function Sidebar({ userRole }: { userRole?: string }) {
                           <Link
                             key={sub.id}
                             href={sub.href}
+                            prefetch
                             onClick={() => setMobileSidebarOpen(false)}
                             style={{
                               display: "flex",
@@ -278,6 +280,7 @@ export function Sidebar({ userRole }: { userRole?: string }) {
                 <Link
                   key={item.id}
                   href={item.href || "#"}
+                  prefetch
                   onClick={() => setMobileSidebarOpen(false)}
                   className={`nav-item ${isActive ? "active" : ""}`}
                 >

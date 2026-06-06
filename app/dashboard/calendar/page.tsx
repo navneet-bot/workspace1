@@ -5,6 +5,19 @@ import { redirect } from "next/navigation";
 import { CalendarView } from "@/components/features/calendar/CalendarView";
 import { deleteExpiredMeetings } from "@/app/actions/meetings";
 
+type CalendarEvent = {
+  type: string;
+  label: string;
+  color: string;
+  dateStr: string;
+  extra?: {
+    time?: string;
+    description?: string;
+    link?: string;
+    descriptionText?: string;
+  };
+};
+
 export default async function CalendarPage() {
   const session = await getServerSession(authOptions);
   
@@ -25,16 +38,19 @@ export default async function CalendarPage() {
 
   await deleteExpiredMeetings();
 
-  const [meetings, tasks, candidates, attendance] = await Promise.all([
+  const [meetings, tasks, projects, candidates, attendance] = await Promise.all([
     prisma.meeting.findMany(),
     prisma.task.findMany({
       where: isAdmin ? {} : { assignedTo: currentUser.email }
+    }),
+    prisma.project.findMany({
+      where: isAdmin ? {} : { OR: [{ createdBy: currentUser.email }, { managerEmail: currentUser.email }] }
     }),
     isAdmin ? prisma.candidate.findMany({ where: { status: "Approved" } }) : Promise.resolve([]),
     isAdmin ? prisma.attendance.findMany() : Promise.resolve([])
   ]);
 
-  const events: any[] = [];
+  const events: CalendarEvent[] = [];
 
   meetings.forEach(m => {
     if (m.date) {
@@ -59,6 +75,20 @@ export default async function CalendarPage() {
         label: "📋 " + t.title,
         color: t.status === "Completed" ? "#10b981" : t.priority === "High" ? "#ef4444" : "#3b82f6",
         dateStr: t.deadline
+      });
+    }
+  });
+
+  projects.forEach(project => {
+    if (project.deadline && project.deadline !== "TBD") {
+      events.push({
+        type: "project",
+        label: "🚀 " + project.name,
+        color: "#A855F7",
+        dateStr: project.deadline,
+        extra: {
+          description: project.description,
+        }
       });
     }
   });

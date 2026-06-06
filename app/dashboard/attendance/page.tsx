@@ -15,7 +15,7 @@ export default async function AttendancePage() {
   const permissions = (session.user as any).permissions || "";
   
   const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
     orderBy: { name: "asc" }
   }).catch(() => []);
 
@@ -27,7 +27,7 @@ export default async function AttendancePage() {
         role={role} 
         permissions={permissions}
         currentUserEmail={session.user.email!}
-        users={users}
+        users={users.map((user) => ({ ...user, createdAt: user.createdAt.toISOString() }))}
         attendance={attendance}
       />
     </div>

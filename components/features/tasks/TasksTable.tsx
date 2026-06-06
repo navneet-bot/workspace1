@@ -16,12 +16,43 @@ interface Task {
   deadline: string;
   assignedTo: string | null;
   project: string;
+  assignee?: AssigneeUser | null;
 }
 
-export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
+interface AssigneeUser {
+  id: number;
+  name: string | null;
+  username: string | null;
+  email: string;
+}
+
+function getAssigneeLabel(user?: AssigneeUser | null, email?: string | null) {
+  if (!user && !email) return "";
+  return user?.name?.trim() || user?.username?.trim() || (user?.id ? `User #${user.id}` : "") || email || "";
+}
+
+function AssigneeCell({ user, email }: { user?: AssigneeUser | null; email?: string | null }) {
+  const label = getAssigneeLabel(user, email);
+  if (!label) return <span style={{ color: "var(--text-muted)" }}>—</span>;
+
+  const secondary = user?.email || (label !== email ? email : "");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+      <span style={{ fontWeight: 700, color: "var(--text)" }}>{label}</span>
+      {secondary ? (
+        <span style={{ fontSize: "11px", color: "var(--text-muted)", wordBreak: "break-word" }}>
+          {secondary}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+export function TasksTable({ initialTasks, assigneeUsers = [] }: { initialTasks: Task[]; assigneeUsers?: AssigneeUser[] }) {
   const { setTaskModalOpen, addToast } = useUIStore();
   const [tasks, setTasks] = useState(initialTasks);
   const [search, setSearch] = useState("");
+  const assigneeByEmail = new Map(assigneeUsers.map((user) => [user.email, user]));
 
   // Sync initialTasks when refreshed
   useEffect(() => {
@@ -33,7 +64,7 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Users and projects lists
-  const [usersList, setUsersList] = useState<{ email: string; name: string }[]>([]);
+  const [usersList, setUsersList] = useState<AssigneeUser[]>([]);
   const [projectsList, setProjectsList] = useState<{ id: number; name: string }[]>([]);
 
   // Edit form state
@@ -48,7 +79,7 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
 
   useEffect(() => {
     if (isEditModalOpen) {
-      getUsersForSelect().then((u) => setUsersList(u.map(x => ({ email: x.email, name: x.name }))));
+      getUsersForSelect().then(setUsersList);
       getProjectsForSelect().then(setProjectsList);
     }
   }, [isEditModalOpen]);
@@ -96,11 +127,13 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
 
     if (res.success) {
       addToast("Task updated successfully!", "success");
+      const nextAssignee = editAssignedTo ? assigneeByEmail.get(editAssignedTo) || usersList.find((user) => user.email === editAssignedTo) || null : null;
       setTasks(tasks.map((t) => (t.id === editingTask.id ? {
         ...t,
         title: editTitle,
         description: editDescription,
         assignedTo: editAssignedTo || null,
+        assignee: nextAssignee,
         priority: editPriority,
         deadline: editDeadline || "TBD",
         project: editProject,
@@ -137,11 +170,21 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
     );
   };
 
-  const filteredTasks = tasks.filter(
-    (t) =>
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      (t.assignedTo || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const getTaskAssignee = (task: Task) => task.assignee || (task.assignedTo ? assigneeByEmail.get(task.assignedTo) || null : null);
+  const selectedEditAssignee = editAssignedTo ? usersList.find((user) => user.email === editAssignedTo) || assigneeByEmail.get(editAssignedTo) || null : null;
+
+  const filteredTasks = tasks.filter((t) => {
+    const query = search.toLowerCase();
+    const assignee = getTaskAssignee(t);
+    const searchableAssignee = [
+      getAssigneeLabel(assignee, t.assignedTo),
+      assignee?.username || "",
+      assignee?.id ? String(assignee.id) : "",
+      t.assignedTo || "",
+    ].join(" ").toLowerCase();
+
+    return t.title.toLowerCase().includes(query) || searchableAssignee.includes(query);
+  });
 
   return (
     <>
@@ -167,7 +210,7 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
             <tr>
               <th>ID</th>
               <th>Title</th>
-              <th>Assignee</th>
+              <th>Assignee Full Name</th>
               <th>Project</th>
               <th>Priority</th>
               <th>Status</th>
@@ -197,7 +240,7 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
                       </>
                     )}
                   </td>
-                  <td>{t.assignedTo || <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
+                  <td><AssigneeCell user={getTaskAssignee(t)} email={t.assignedTo} /></td>
                   <td>{t.project || <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
                   <td>{prioritySpan(t.priority)}</td>
                   <td>
@@ -293,10 +336,15 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
                         <option value="">-- Unassigned --</option>
                         {usersList.map((u) => (
                           <option key={u.email} value={u.email}>
-                            {u.name} ({u.email})
+                            {getAssigneeLabel(u, u.email)} ({u.email})
                           </option>
                         ))}
                       </select>
+                      {editAssignedTo ? (
+                        <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--text-muted)" }}>
+                          Assigned to <strong style={{ color: "var(--text)" }}>{getAssigneeLabel(selectedEditAssignee, editAssignedTo)}</strong>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="field">
                       <label>Priority</label>
@@ -387,4 +435,3 @@ export function TasksTable({ initialTasks }: { initialTasks: Task[] }) {
     </>
   );
 }
-

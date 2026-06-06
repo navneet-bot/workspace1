@@ -310,7 +310,7 @@ export function TutorsTable({ initialTutors }: { initialTutors: TutorFormData[] 
       addToast(parts.join(" · "), res.imported > 0 ? "success" : "error");
       
       if (res.imported > 0) {
-        window.location.reload();
+        router.refresh();
       }
     } catch (e: any) {
       addToast(`Import failed: ${e.message}`, "error");

@@ -7,12 +7,24 @@ import { getUsersForSelect, getProjectsForSelect, createTask } from "@/app/actio
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+interface SelectUser {
+  id: number;
+  name: string | null;
+  username: string | null;
+  email: string;
+}
+
+function getAssigneeLabel(user?: SelectUser | null, email?: string | null) {
+  if (!user && !email) return "";
+  return user?.name?.trim() || user?.username?.trim() || (user?.id ? `User #${user.id}` : "") || email || "";
+}
+
 export function TaskModal() {
   const { isTaskModalOpen, setTaskModalOpen, addToast } = useUIStore();
   const { data: session } = useSession();
   const router = useRouter();
 
-  const [users, setUsers] = useState<{ email: string; name: string }[]>([]);
+  const [users, setUsers] = useState<SelectUser[]>([]);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
 
   const [title, setTitle] = useState("");
@@ -25,7 +37,7 @@ export function TaskModal() {
 
   useEffect(() => {
     if (isTaskModalOpen) {
-      getUsersForSelect().then((u) => setUsers(u.map(x => ({ email: x.email, name: x.name }))));
+      getUsersForSelect().then(setUsers);
       getProjectsForSelect().then(setProjects);
     }
   }, [isTaskModalOpen]);
@@ -56,6 +68,8 @@ export function TaskModal() {
       addToast(result.error || "Failed to create task", "error");
     }
   };
+
+  const selectedAssignee = assignedTo ? users.find((user) => user.email === assignedTo) || null : null;
 
   return (
     <AnimatePresence>
@@ -100,10 +114,15 @@ export function TaskModal() {
                       <option value="">-- Unassigned --</option>
                       {users.map((u) => (
                         <option key={u.email} value={u.email}>
-                          {u.name} ({u.email})
+                          {getAssigneeLabel(u, u.email)} ({u.email})
                         </option>
                       ))}
                     </select>
+                    {assignedTo ? (
+                      <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--text-muted)" }}>
+                        Assigning to <strong style={{ color: "var(--text)" }}>{getAssigneeLabel(selectedAssignee, assignedTo)}</strong>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="field">
                     <label>Priority</label>

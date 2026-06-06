@@ -22,6 +22,7 @@ model User {
   jobjockeyId        String?  @unique
   createdAt          DateTime @default(now())
 
+  @@index([role])
   @@map("users")
 }
 
@@ -38,6 +39,10 @@ model Task {
   completedAt DateTime?
   createdAt   DateTime @default(now())
 
+  @@index([assignedTo])
+  @@index([status])
+  @@index([createdAt])
+  @@index([createdBy])
   @@map("tasks")
 }
 
@@ -54,6 +59,9 @@ model Project {
   createdBy   String?
   createdAt   DateTime @default(now())
 
+  @@index([status])
+  @@index([createdAt])
+  @@index([managerEmail])
   @@map("projects")
 }
 
@@ -74,6 +82,8 @@ model Candidate {
   extraData   String   @default("") // JSON: extra CSV columns
   appliedAt   DateTime @default(now())
 
+  @@index([status])
+  @@index([appliedAt])
   @@map("candidates")
 }
 
@@ -88,6 +98,9 @@ model Attendance {
   leaveType           String?
   leaveReason         String?
 
+  @@index([email])
+  @@index([date])
+  @@index([status])
   @@map("attendance")
 }
 
@@ -103,6 +116,9 @@ model Report {
   reviewed    Boolean  @default(false)
   submittedAt DateTime @default(now())
 
+  @@index([submittedBy])
+  @@index([submittedAt])
+  @@index([reviewed])
   @@map("reports")
 }
 
@@ -115,6 +131,7 @@ model Group {
   createdBy   String?
   createdAt   DateTime @default(now())
 
+  @@index([createdAt])
   @@map("groups")
 }
 
@@ -131,6 +148,8 @@ model Meeting {
   createdBy   String?
   createdAt   DateTime @default(now())
 
+  @@index([date])
+  @@index([createdAt])
   @@map("meetings")
 }
 
@@ -144,6 +163,9 @@ model Notification {
   seenBy      String   @default("[]") // JSON list of emails
   createdAt   DateTime @default(now())
 
+  @@index([targetEmail])
+  @@index([createdAt])
+  @@index([read])
   @@map("notifications")
 }
 
@@ -163,6 +185,9 @@ model WorkLog {
   date        String   @default("") // YYYY-MM-DD
   createdAt   DateTime @default(now())
 
+  @@index([email])
+  @@index([date])
+  @@index([createdAt])
   @@map("work_logs")
 }
 
@@ -174,6 +199,8 @@ model GroupMessage {
   sentAt      DateTime @default(now())
   readBy      String   @default("[]") // JSON list of user IDs who have read this
 
+  @@index([groupId])
+  @@index([sentAt])
   @@map("group_messages")
 }
 
@@ -185,6 +212,9 @@ model ChatMessage {
   read        Boolean  @default(false)
   sentAt      DateTime @default(now())
 
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([sentAt])
   @@map("chat_messages")
 }
 
@@ -234,6 +264,8 @@ model Tutor {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  @@index([status])
+  @@index([createdAt])
   @@map("tutors")
 }
 
@@ -252,6 +284,9 @@ model BreakRequest {
   approvedByName String    @default("")
   createdAt      DateTime  @default(now())
 
+  @@index([userEmail])
+  @@index([status])
+  @@index([createdAt])
   @@map("break_requests")
 }
 

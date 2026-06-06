@@ -3,6 +3,19 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+function getProjectManagerEmails(managerEmail?: string | null) {
+  if (!managerEmail) return [];
+  try {
+    const parsed = JSON.parse(managerEmail);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((email): email is string => typeof email === "string" && email.trim() !== "");
+    }
+  } catch {
+    // Older projects stored one manager email directly.
+  }
+  return managerEmail.trim() ? [managerEmail] : [];
+}
+
 export async function markAttendance(
   email: string,
   status: string,
@@ -82,10 +95,9 @@ export async function markAttendance(
       });
       
       const managerEmails = userProjects
-        .map(p => p.managerEmail)
-        .filter((m): m is string => typeof m === "string" && m.trim() !== "");
+        .flatMap(p => getProjectManagerEmails(p.managerEmail));
 
-      let targetEmails = managerEmails;
+      let targetEmails = Array.from(new Set(managerEmails));
       if (targetEmails.length === 0) {
         // Fallback: Notify all admins, super_admins, and tutors
         const admins = await prisma.user.findMany({

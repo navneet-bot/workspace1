@@ -2,6 +2,7 @@
 
 import { useUIStore } from "@/hooks/useUIStore";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createProject, updateProject, deleteProject } from "@/app/actions/projects";
 import { AnimatePresence, motion } from "framer-motion";
 import { Pencil, Trash2 } from "lucide-react";
@@ -37,6 +38,7 @@ export function ProjectsGrid({
   allUsers?: User[];
 }) {
   const { addToast } = useUIStore();
+  const router = useRouter();
   const [projects, setProjects] = useState(initialProjects);
 
   // Modals state
@@ -51,7 +53,7 @@ export function ProjectsGrid({
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("In Progress");
   const [loading, setLoading] = useState(false);
-  const [managerEmail, setManagerEmail] = useState("");
+  const [selectedManagers, setSelectedManagers] = useState<string[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
   const [managerSearch, setManagerSearch] = useState("");
@@ -68,6 +70,19 @@ export function ProjectsGrid({
     }
   };
 
+  const getManagerEmails = (managerStr?: string) => {
+    if (!managerStr) return [];
+    try {
+      const arr = JSON.parse(managerStr);
+      if (Array.isArray(arr)) return arr.filter((email): email is string => typeof email === "string" && email.trim() !== "");
+    } catch {
+      // Older projects stored a single manager email directly.
+    }
+    return managerStr.trim() ? [managerStr] : [];
+  };
+
+  const getManagersValue = () => JSON.stringify(selectedManagers);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return addToast("Project Name is required", "error");
@@ -80,7 +95,7 @@ export function ProjectsGrid({
       progress: 0,
       color,
       createdBy: currentUserEmail,
-      managerEmail,
+      managerEmail: getManagersValue(),
       members: JSON.stringify(selectedMembers),
       deadline,
     });
@@ -92,10 +107,10 @@ export function ProjectsGrid({
       setName("");
       setDescription("");
       setColor("#3b82f6");
-      setManagerEmail("");
+      setSelectedManagers([]);
       setSelectedMembers([]);
       setDeadline("");
-      window.location.reload();
+      router.refresh();
     } else {
       addToast(res.error || "Failed to create", "error");
     }
@@ -114,7 +129,7 @@ export function ProjectsGrid({
       description,
       progress,
       status: finalStatus,
-      managerEmail,
+      managerEmail: getManagersValue(),
       members: JSON.stringify(selectedMembers),
       deadline,
     });
@@ -123,7 +138,7 @@ export function ProjectsGrid({
     if (res.success) {
       addToast("Project updated!", "success");
       setIsEditModalOpen(false);
-      window.location.reload();
+      router.refresh();
     } else {
       addToast(res.error || "Failed to update", "error");
     }
@@ -162,7 +177,7 @@ export function ProjectsGrid({
     setDescription(p.description);
     setProgress(p.progress);
     setStatus(p.status);
-    setManagerEmail(p.managerEmail || "");
+    setSelectedManagers(getManagerEmails(p.managerEmail));
     setSelectedMembers(getMembersList(p.members));
     setMemberSearch("");
     setManagerSearch("");
@@ -181,7 +196,7 @@ export function ProjectsGrid({
                 setName("");
                 setDescription("");
                 setColor("#3b82f6");
-                setManagerEmail("");
+                setSelectedManagers([]);
                 setSelectedMembers([]);
                 setMemberSearch("");
                 setManagerSearch("");
@@ -239,13 +254,18 @@ export function ProjectsGrid({
                       </td>
                       <td>
                         {(() => {
-                          if (!p.managerEmail) return <span style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>—</span>;
-                          const manager = allUsers.find(u => u.email === p.managerEmail);
+                          const managerEmails = getManagerEmails(p.managerEmail);
+                          if (managerEmails.length === 0) return <span style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>—</span>;
+                          const managers = managerEmails.map(email => ({ email, user: allUsers.find(u => u.email === email) }));
                           return (
-                            <div>
-                              <strong style={{ fontSize: "13px" }}>{manager ? manager.name : p.managerEmail.split("@")[0]}</strong>
-                              <br />
-                              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{p.managerEmail}</span>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {managers.map(({ email, user }) => (
+                                <div key={email}>
+                                  <strong style={{ fontSize: "13px" }}>{user ? user.name : email.split("@")[0]}</strong>
+                                  <br />
+                                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{email}</span>
+                                </div>
+                              ))}
                             </div>
                           );
                         })()}
@@ -383,18 +403,20 @@ export function ProjectsGrid({
                     {allUsers
                       .filter(u => (u.role === "admin" || u.role === "super_admin" || u.role === "tutor") && (u.name.toLowerCase().includes(managerSearch.toLowerCase()) || u.email.toLowerCase().includes(managerSearch.toLowerCase())))
                       .map(u => {
-                        const isChecked = managerEmail === u.email;
+                        const isChecked = selectedManagers.includes(u.email);
                         return (
                           <label key={u.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--border)" }} className="hover:bg-white/[0.04]">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                setManagerEmail(isChecked ? "" : u.email);
+                                setSelectedManagers(prev =>
+                                  prev.includes(u.email) ? prev.filter(e => e !== u.email) : [...prev, u.email]
+                                );
                               }}
                               style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
                             />
-                            <span style={{ fontSize: "12.5px" }}>{u.name} ({u.role.replace("_", " ")})</span>
+                            <span style={{ fontSize: "12.5px" }}>{u.name}</span>
                           </label>
                         );
                       })}
@@ -427,7 +449,7 @@ export function ProjectsGrid({
                               }}
                               style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
                             />
-                            <span style={{ fontSize: "12.5px" }}>{u.name} ({u.email.split("@")[0]})</span>
+                            <span style={{ fontSize: "12.5px" }}>{u.name}</span>
                           </label>
                         );
                       })}
@@ -528,14 +550,16 @@ export function ProjectsGrid({
                     {allUsers
                       .filter(u => (u.role === "admin" || u.role === "super_admin" || u.role === "tutor") && (u.name.toLowerCase().includes(managerSearch.toLowerCase()) || u.email.toLowerCase().includes(managerSearch.toLowerCase())))
                       .map(u => {
-                        const isChecked = managerEmail === u.email;
+                        const isChecked = selectedManagers.includes(u.email);
                         return (
                           <label key={u.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--border)" }} className="hover:bg-white/[0.04]">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
-                                setManagerEmail(isChecked ? "" : u.email);
+                                setSelectedManagers(prev =>
+                                  prev.includes(u.email) ? prev.filter(e => e !== u.email) : [...prev, u.email]
+                                );
                               }}
                               style={{ accentColor: "var(--accent)", width: 14, height: 14 }}
                             />

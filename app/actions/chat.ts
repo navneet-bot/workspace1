@@ -3,7 +3,7 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function fetchChatMessages(userId1: number, userId2: number) {
+export async function fetchChatMessages(userId1: number, userId2: number, limit = 50) {
   try {
     const messages = await prisma.chatMessage.findMany({
       where: {
@@ -12,11 +12,12 @@ export async function fetchChatMessages(userId1: number, userId2: number) {
           { senderId: userId2, receiverId: userId1 },
         ]
       },
-      orderBy: { sentAt: "asc" },
+      orderBy: { sentAt: "desc" },
+      take: limit,
     });
     
     // Serialize date objects for client components
-    return messages.map(m => ({
+    return messages.reverse().map(m => ({
       ...m,
       sentAt: m.sentAt.toISOString()
     }));
@@ -97,13 +98,14 @@ export async function deleteChatMessage(id: number) {
   }
 }
 
-export async function fetchGroupMessages(groupId: number) {
+export async function fetchGroupMessages(groupId: number, limit = 50) {
   try {
     const messages = await prisma.groupMessage.findMany({
       where: { groupId },
-      orderBy: { sentAt: "asc" }
+      orderBy: { sentAt: "desc" },
+      take: limit,
     });
-    return messages.map(m => ({
+    return messages.reverse().map(m => ({
       ...m,
       sentAt: m.sentAt.toISOString()
     }));
@@ -201,11 +203,12 @@ export async function fetchConversations(userId: number, userEmail: string) {
           { receiverId: userId }
         ]
       },
-      orderBy: { sentAt: "asc" }
+      orderBy: { sentAt: "desc" },
+      take: 200,
     });
 
     // Determine which groups the user belongs to
-    const allGroups = await prisma.group.findMany();
+    const allGroups = await prisma.group.findMany({ select: { id: true, members: true } });
     const userGroupIds = allGroups
       .filter(g => {
         try {
@@ -220,7 +223,8 @@ export async function fetchConversations(userId: number, userEmail: string) {
     const groupMsgs = userGroupIds.length > 0
       ? await prisma.groupMessage.findMany({
           where: { groupId: { in: userGroupIds } },
-          orderBy: { sentAt: "asc" }
+          orderBy: { sentAt: "desc" },
+          take: 200,
         })
       : [];
 

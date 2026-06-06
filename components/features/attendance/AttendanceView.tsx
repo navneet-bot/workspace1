@@ -19,6 +19,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  createdAt?: string;
 }
 
 export function AttendanceView({
@@ -227,6 +228,7 @@ export function AttendanceView({
   const canManageAttendance = isUserAdmin || hasPermission("manage_attendance");
 
   const todayISO = new Date().toISOString().split("T")[0];
+  const currentUserJoiningDate = users.find((u) => u.email === currentUserEmail)?.createdAt?.split("T")[0] || todayISO;
   const todayStr = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -442,7 +444,11 @@ export function AttendanceView({
       Absent: "badge-red",
       Leave: "badge-purple",
       "Leave Requested": "badge-amber",
-      "leave requested": "badge-amber"
+      "leave requested": "badge-amber",
+      Weekend: "badge-gray",
+      weekend: "badge-gray",
+      "Not Joined Yet": "badge-gray",
+      "not joined yet": "badge-gray"
     };
     return <span className={`badge ${m[s] || "badge-gray"}`}>{s}</span>;
   };
@@ -687,14 +693,16 @@ export function AttendanceView({
                         {selectedDateRecords.map((rec) => {
                           const email = rec.email || "";
                           const isLeaveRequested = rec.status === "leave requested";
-                          const formattedStatusText = rec.status === "present" ? "Present" : rec.status === "absent" ? "Absent" : rec.status === "leave" ? "Leave" : rec.status === "leave requested" ? "Leave Requested" : rec.status;
+                          const formattedStatusText = rec.status === "present" ? "Present" : rec.status === "absent" ? "Absent" : rec.status === "leave" ? "Leave" : rec.status === "leave requested" ? "Leave Requested" : rec.status === "weekend" ? "Weekend" : rec.status === "not joined yet" ? "Not Joined Yet" : rec.status;
+                          const isBeforeJoining = rec.status === "not joined yet";
+                          const isWeekendStatus = rec.status === "weekend";
                           return (
                             <tr key={rec.userId}>
                               <td style={{ padding: "12px 16px", fontWeight: 600 }}>{rec.name}</td>
                               <td style={{ padding: "12px 16px" }}>
                                 {statusBadge(formattedStatusText)}
                               </td>
-                              {canManageAttendance && (
+                              {canManageAttendance && !isBeforeJoining && !isWeekendStatus && (
                                 <td style={{ padding: "8px 16px" }}>
                                   {isLeaveRequested ? (
                                     <div style={{ display: "flex", gap: "6px" }}>
@@ -966,7 +974,9 @@ export function AttendanceView({
 
   // Intern View - Interactive Attendance Calendar
   const todayRec = records.find((a) => a.email === currentUserEmail && a.date === todayISO);
-  const todayStatus = todayRec ? todayRec.status : "Not Marked";
+  const todayParts = todayISO.split("-").map(Number);
+  const isTodayWeekend = new Date(todayParts[0], todayParts[1] - 1, todayParts[2]).getDay() === 0;
+  const todayStatus = todayISO < currentUserJoiningDate ? "Not Joined Yet" : isTodayWeekend ? "Weekend" : todayRec ? todayRec.status : "Not Marked";
 
   const yr = internAttDate.getFullYear();
   const mo = internAttDate.getMonth();
@@ -990,11 +1000,14 @@ export function AttendanceView({
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const dayOfWeek = new Date(yr, mo, d).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isWeekend = dayOfWeek === 0;
     const isPast = iso < todayISO;
+    const isBeforeJoining = iso < currentUserJoiningDate;
     const st = attMap[iso];
 
-    if (st === "Present") {
+    if (isBeforeJoining || isWeekend) {
+      continue;
+    } else if (st === "Present") {
       mp++;
     } else if (st === "Leave") {
       ml++;
@@ -1016,12 +1029,17 @@ export function AttendanceView({
     const iso = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const isToday = iso === todayISO;
     const dayOfWeek = new Date(yr, mo, d).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isWeekend = dayOfWeek === 0;
     const isPast = iso < todayISO;
+    const isBeforeJoining = iso < currentUserJoiningDate;
     
     let st = attMap[iso];
     let isImplicitAbsent = false;
-    if (!st && isPast && !isWeekend) {
+    if (isBeforeJoining) {
+      st = "Not Joined Yet";
+    } else if (isWeekend) {
+      st = "Weekend";
+    } else if (!st && isPast) {
       st = "Absent";
       isImplicitAbsent = true;
     }
@@ -1035,6 +1053,8 @@ export function AttendanceView({
         ? { backgroundColor: "rgba(139,92,246,0.12)", borderColor: "var(--purple)" }
         : st === "Leave Requested"
         ? { backgroundColor: "rgba(245,158,11,0.12)", borderColor: "var(--amber)" }
+        : st === "Weekend" || st === "Not Joined Yet"
+        ? { backgroundColor: "rgba(100,116,139,0.08)", borderColor: "var(--border)", color: "var(--text-muted)" }
         : {};
 
     const dot =
@@ -1057,6 +1077,16 @@ export function AttendanceView({
         <>
           <div className="mt-1 text-[18px] leading-none text-jj-amber">⏳</div>
           <div className="text-[10px] text-jj-amber" style={{ fontSize: "9px" }}>Pending</div>
+        </>
+      ) : st === "Weekend" ? (
+        <>
+          <div className="mt-1 text-[18px] leading-none" style={{ color: "var(--text-muted)" }}>—</div>
+          <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>Weekend</div>
+        </>
+      ) : st === "Not Joined Yet" ? (
+        <>
+          <div className="mt-1 text-[18px] leading-none" style={{ color: "var(--text-muted)" }}>—</div>
+          <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>Not Joined Yet</div>
         </>
       ) : null;
 
@@ -1117,6 +1147,10 @@ export function AttendanceView({
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           {todayStatus === "Not Marked" ? (
             <button onClick={markMyAttendance} className="btn-sm btn-accent">✓ Mark Present Today</button>
+          ) : todayStatus === "Not Joined Yet" ? (
+            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Attendance tracking has not started yet</span>
+          ) : todayStatus === "Weekend" ? (
+            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Weekend - no attendance expected</span>
           ) : (
             <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Already marked for today</span>
           )}
