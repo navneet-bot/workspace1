@@ -6,6 +6,8 @@ import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { MobileOverlay } from "@/components/layout/MobileOverlay";
 import { PageBody } from "@/components/layout/PageBody";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {
