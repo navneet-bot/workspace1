@@ -233,13 +233,16 @@ export async function fetchConversations(userId: number, userEmail: string) {
     for (const msg of chatMsgs) {
       const contactId = msg.senderId === userId ? `user_${msg.receiverId}` : `user_${msg.senderId}`;
       if (!conversations[contactId]) {
-        conversations[contactId] = { unreadCount: 0, lastMessageAt: "", lastMessagePreview: "" };
+        let preview = msg.message;
+        if (preview.startsWith("[img:")) preview = "📷 Image";
+        if (preview.startsWith("[file:")) preview = "📄 File";
+
+        conversations[contactId] = { 
+          unreadCount: 0, 
+          lastMessageAt: msg.sentAt.toISOString(), 
+          lastMessagePreview: preview 
+        };
       }
-      conversations[contactId].lastMessageAt = msg.sentAt.toISOString();
-      let preview = msg.message;
-      if (preview.startsWith("[img:")) preview = "📷 Image";
-      if (preview.startsWith("[file:")) preview = "📄 File";
-      conversations[contactId].lastMessagePreview = preview;
 
       if (msg.receiverId === userId && !msg.read) {
         conversations[contactId].unreadCount++;
@@ -249,13 +252,16 @@ export async function fetchConversations(userId: number, userEmail: string) {
     for (const msg of groupMsgs) {
       const contactId = `group_${msg.groupId}`;
       if (!conversations[contactId]) {
-        conversations[contactId] = { unreadCount: 0, lastMessageAt: "", lastMessagePreview: "" };
+        let preview = msg.message;
+        if (preview.startsWith("[img:")) preview = "📷 Image";
+        if (preview.startsWith("[file:")) preview = "📄 File";
+
+        conversations[contactId] = { 
+          unreadCount: 0, 
+          lastMessageAt: msg.sentAt.toISOString(), 
+          lastMessagePreview: preview 
+        };
       }
-      conversations[contactId].lastMessageAt = msg.sentAt.toISOString();
-      let preview = msg.message;
-      if (preview.startsWith("[img:")) preview = "📷 Image";
-      if (preview.startsWith("[file:")) preview = "📄 File";
-      conversations[contactId].lastMessagePreview = preview;
 
       let readBy: number[] = [];
       try {
