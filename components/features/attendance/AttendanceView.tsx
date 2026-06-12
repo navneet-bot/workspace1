@@ -704,7 +704,7 @@ export function AttendanceView({
                           const email = rec.email || "";
                           const isLeaveRequested = rec.status === "leave requested";
                           const formattedStatusText = rec.status === "present" ? "Present" : rec.status === "absent" ? "Absent" : rec.status === "leave" ? "Leave" : rec.status === "leave requested" ? "Leave Requested" : rec.status === "weekend" ? "Weekend" : rec.status === "not joined yet" ? "Not Joined Yet" : rec.status;
-                          const isBeforeJoining = rec.status === "not joined yet";
+                          // const isBeforeJoining = rec.status === "not joined yet";
                           const isWeekendStatus = rec.status === "weekend";
                           return (
                             <tr key={rec.userId}>
@@ -712,7 +712,7 @@ export function AttendanceView({
                               <td style={{ padding: "12px 16px" }}>
                                 {statusBadge(formattedStatusText)}
                               </td>
-                              {canManageAttendance && !isBeforeJoining && (
+                            {canManageAttendance && !isWeekendStatus && (
                                 <td style={{ padding: "8px 16px" }}>
                                   {isLeaveRequested ? (
                                     <div style={{ display: "flex", gap: "6px" }}>
@@ -1246,6 +1246,7 @@ export function AttendanceView({
                   >
                     <option value="Tea Break">Tea Break</option>
                     <option value="Lunch">Lunch</option>
+                    <option value="Dinner">Dinner</option>
                     <option value="Medical">Medical</option>
                     <option value="Personal Work">Personal Work</option>
                     <option value="Emergency">Emergency</option>

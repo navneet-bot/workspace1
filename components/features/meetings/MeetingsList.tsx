@@ -20,10 +20,12 @@ interface Meeting {
   date: string | null;
   time: string | null;
   endTime: string | null;
-  duration: number | null;
   meetLink: string;
   members: string; // JSON
   createdBy: string | null;
+  recurrenceType: string;
+  recurrenceInterval: number | null;
+  recurrenceEndDate: string | null;
 }
 
 export function MeetingsList({
@@ -47,10 +49,12 @@ export function MeetingsList({
   const [date, setDate] = useState("");
   const [fromTime, setFromTime] = useState("");
   const [toTime, setToTime] = useState("");
-  const [duration, setDuration] = useState(30);
   const [meetLink, setMeetLink] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState("none");
+  const [recurrenceInterval, setRecurrenceInterval] = useState(2);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
   const addMinutesToTime = (timeStr: string, minutes: number): string => {
     if (!timeStr) return "";
@@ -60,41 +64,15 @@ export function MeetingsList({
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   };
 
-  const calculateMinutesDifference = (time1: string, time2: string): number => {
-    if (!time1 || !time2) return 0;
-    const [h1, m1] = time1.split(":").map(Number);
-    const [h2, m2] = time2.split(":").map(Number);
-    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-    if (diff < 0) {
-      diff += 24 * 60; // handle cross-midnight
-    }
-    return diff;
-  };
-
   const handleFromTimeChange = (val: string) => {
     setFromTime(val);
-    if (val && duration) {
-      setToTime(addMinutesToTime(val, duration));
+    if (val && !toTime) {
+      setToTime(addMinutesToTime(val, 30));
     }
   };
 
   const handleToTimeChange = (val: string) => {
     setToTime(val);
-    if (fromTime && val) {
-      const diff = calculateMinutesDifference(fromTime, val);
-      setDuration(diff);
-    }
-  };
-
-  const handleDurationChange = (val: number) => {
-    setDuration(val);
-    let baseTime = fromTime;
-    if (!baseTime) {
-      const now = new Date();
-      baseTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      setFromTime(baseTime);
-    }
-    setToTime(addMinutesToTime(baseTime, val));
   };
 
   const teamMembers = allUsers.filter((u) => u.role !== "admin");
@@ -111,10 +89,12 @@ export function MeetingsList({
       date,
       time: fromTime,
       endTime: toTime,
-      duration: Number(duration),
       meetLink,
       members: JSON.stringify(selectedMembers),
       createdBy: currentUserEmail,
+      recurrenceType: recurrenceType !== "none" ? recurrenceType : undefined,
+      recurrenceInterval: recurrenceType === "custom" ? recurrenceInterval : undefined,
+      recurrenceEndDate: recurrenceType !== "none" ? recurrenceEndDate || undefined : undefined,
     });
     setLoading(false);
 
@@ -127,9 +107,11 @@ export function MeetingsList({
       setDate("");
       setFromTime("");
       setToTime("");
-      setDuration(30);
       setMeetLink("");
       setSelectedMembers([]);
+      setRecurrenceType("none");
+      setRecurrenceInterval(2);
+      setRecurrenceEndDate("");
     } else {
       addToast(res.error || "Failed to schedule meeting", "error");
     }
@@ -167,7 +149,9 @@ export function MeetingsList({
               const currentTime = `${h}:${m}`;
               setFromTime(currentTime);
               setToTime(addMinutesToTime(currentTime, 30));
-              setDuration(30);
+              setRecurrenceType("none");
+              setRecurrenceInterval(2);
+              setRecurrenceEndDate("");
             }}
             className="btn-sm btn-accent"
           >
@@ -203,8 +187,14 @@ export function MeetingsList({
               <div className="meet-info">
                 <h4>{m.title}</h4>
                 <p>
-                  🕐 {m.time ? (m.endTime ? `${m.time} - ${m.endTime} (${m.duration} mins)` : m.time) : "TBD"} · by{" "}
+                  🕐 {m.time ? (m.endTime ? `${m.time} - ${m.endTime}` : m.time) : "TBD"} · by{" "}
                   {m.createdBy ? m.createdBy.split("@")[0] : "admin"}
+                  {m.recurrenceType !== "none" && (
+                    <span className="recurrence-badge">
+                      {" "}🔄 {m.recurrenceType === "daily" ? "Daily" : `Every ${m.recurrenceInterval} days`}
+                      {m.recurrenceEndDate ? ` until ${m.recurrenceEndDate}` : ""}
+                    </span>
+                  )}
                 </p>
                 {m.description && (
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
@@ -307,41 +297,13 @@ export function MeetingsList({
                     />
                   </div>
 
-                  <div className="form-row">
-                    <div className="field">
-                      <label>Date</label>
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Duration</label>
-                      <select
-                        value={duration}
-                        onChange={(e) => handleDurationChange(Number(e.target.value))}
-                        style={{
-                          width: "100%",
-                          background: "var(--surface2)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "8px",
-                          padding: "9px 12px",
-                          color: "var(--text)",
-                          fontFamily: "inherit",
-                          fontSize: "13px",
-                          outline: "none"
-                        }}
-                      >
-                        <option value={15}>15 minutes</option>
-                        <option value={30}>30 minutes</option>
-                        <option value={45}>45 minutes</option>
-                        <option value={60}>1 hour</option>
-                        <option value={90}>1.5 hours</option>
-                        <option value={120}>2 hours</option>
-                        <option value={180}>3 hours</option>
-                      </select>
-                    </div>
+                  <div className="field">
+                    <label>Date</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                    />
                   </div>
 
                   <div className="form-row">
@@ -361,6 +323,59 @@ export function MeetingsList({
                         onChange={(e) => handleToTimeChange(e.target.value)}
                       />
                     </div>
+                  </div>
+
+                  <div className="field" style={{ marginTop: "8px" }}>
+                    <label>Recurrence</label>
+                    <select
+                      value={recurrenceType}
+                      onChange={(e) => setRecurrenceType(e.target.value)}
+                      style={{
+                        width: "100%",
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "8px",
+                        padding: "9px 12px",
+                        color: "var(--text)",
+                        fontFamily: "inherit",
+                        fontSize: "13px",
+                        outline: "none",
+                        marginBottom: recurrenceType !== "none" ? "8px" : "0"
+                      }}
+                    >
+                      <option value="none">None</option>
+                      <option value="daily">Daily</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                    {recurrenceType === "custom" && (
+                      <div className="field" style={{ marginBottom: "8px" }}>
+                        <label>Every (days)</label>
+                        <input
+                          type="number"
+                          min={2}
+                          value={recurrenceInterval}
+                          onChange={(e) => setRecurrenceInterval(Number(e.target.value))}
+                        />
+                      </div>
+                    )}
+                    {recurrenceType !== "none" && (
+                      <div className="field">
+                        <label>End Date</label>
+                        <input
+                          type="date"
+                          value={recurrenceEndDate}
+                          onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {recurrenceType !== "none" && (
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px" }}>
+                        {recurrenceType === "daily"
+                          ? "Meeting will repeat every day."
+                          : `Meeting will repeat every ${recurrenceInterval} days.`}
+                        {recurrenceEndDate ? ` Ends ${recurrenceEndDate}.` : ""}
+                      </p>
+                    )}
                   </div>
 
                   <div className="field">

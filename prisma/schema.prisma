@@ -138,17 +138,19 @@ model Group {
 }
 
 model Meeting {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String   @default("")
-  date        String?  // YYYY-MM-DD
-  time        String?  // HH:MM (start time)
-  endTime     String?  // HH:MM (end time)
-  duration    Int?     // duration in minutes
-  meetLink    String   @default("")
-  members     String   @default("[]") // JSON list of emails invited
-  createdBy   String?
-  createdAt   DateTime @default(now())
+  id                 Int      @id @default(autoincrement())
+  title              String
+  description        String   @default("")
+  date               String?  // YYYY-MM-DD
+  time               String?  // HH:MM (start time)
+  endTime            String?  // HH:MM (end time)
+  meetLink           String   @default("")
+  members            String   @default("[]") // JSON list of emails invited
+  createdBy          String?
+  createdAt          DateTime @default(now())
+  recurrenceType     String   @default("none") // "none" | "daily" | "custom"
+  recurrenceInterval Int?                       // for "custom" — every N days
+  recurrenceEndDate  String?                    // YYYY-MM-DD
 
   @@index([date])
   @@index([createdAt])

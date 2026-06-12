@@ -99,11 +99,11 @@ export async function GET(req: Request) {
     // Construct response matching the requested schema
     const responseData = users.map((u) => {
       const email = u.email;
-      const joiningDate = u.createdAt.toISOString().split("T")[0];
+      // const joiningDate = u.createdAt.toISOString().split("T")[0];
       let status = attendanceMap.get(email);
-      if (dateStr < joiningDate) {
-        status = "Not Joined Yet";
-      } else if (isWeekend) {
+      // if (dateStr < joiningDate) {
+        // status = "Not Joined Yet";
+      if (isWeekend) {
         status = "Weekend";
       } else if (!status) {
         if (isFuture) {
