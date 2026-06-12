@@ -55,24 +55,45 @@ export default async function CalendarPage() {
   const events: CalendarEvent[] = [];
 
   meetings.forEach(m => {
-    if (m.date) {
-      const meetingTime = m.time
-        ? m.endTime
-          ? `${m.time} - ${m.endTime} (${m.duration ?? 30} mins)`
-          : m.time
-        : undefined;
+    if (!m.date) return;
 
+    const meetingTime = m.time
+      ? m.endTime
+        ? `${m.time} - ${m.endTime}`
+        : m.time
+      : undefined;
+
+    const pushEvent = (dateStr: string) => {
       events.push({
         type: "meeting",
         label: "📅 " + m.title,
         color: "#f59e0b",
-        dateStr: m.date,
+        dateStr,
         extra: { 
           time: meetingTime,
           description: m.description, 
           link: m.meetLink 
         }
       });
+    };
+
+    if (m.recurrenceType !== "none") {
+      const startDate = new Date(m.date + "T00:00:00");
+      const endDateStr = m.recurrenceEndDate || (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 60);
+        return d.toISOString().split("T")[0];
+      })();
+      const endDate = new Date(endDateStr + "T00:00:00");
+      const interval = m.recurrenceType === "custom" ? (m.recurrenceInterval || 2) : 1;
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const ds = current.toISOString().split("T")[0];
+        pushEvent(ds);
+        current.setDate(current.getDate() + interval);
+      }
+    } else {
+      pushEvent(m.date);
     }
   });
 

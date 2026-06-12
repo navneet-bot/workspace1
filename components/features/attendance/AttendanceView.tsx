@@ -712,7 +712,7 @@ export function AttendanceView({
                               <td style={{ padding: "12px 16px" }}>
                                 {statusBadge(formattedStatusText)}
                               </td>
-                              {canManageAttendance && !isBeforeJoining && !isWeekendStatus && (
+                              {canManageAttendance && !isBeforeJoining && (
                                 <td style={{ padding: "8px 16px" }}>
                                   {isLeaveRequested ? (
                                     <div style={{ display: "flex", gap: "6px" }}>
@@ -1246,6 +1246,7 @@ export function AttendanceView({
                   >
                     <option value="Tea Break">Tea Break</option>
                     <option value="Lunch">Lunch</option>
+                    <option value="Dinner">Dinner</option>
                     <option value="Medical">Medical</option>
                     <option value="Personal Work">Personal Work</option>
                     <option value="Emergency">Emergency</option>
