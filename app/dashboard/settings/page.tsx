@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { SettingsView } from "@/components/features/settings/SettingsView";
 
 export default async function SettingsPage() {
-  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -56,11 +55,4 @@ export default async function SettingsPage() {
       />
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

@@ -6,7 +6,6 @@ import { ProductivityView } from "@/components/features/productivity/Productivit
 import { getAllInternsProductivity } from "@/app/actions/productivity";
 
 export default async function ProductivityPage() {
-  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -64,11 +63,4 @@ export default async function ProductivityPage() {
       <ProductivityView stats={stats} breakStats={breakStats} />
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

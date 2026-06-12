@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { TasksTable } from "@/components/features/tasks/TasksTable";
 
 export default async function TasksPage() {
-  try {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user) {
@@ -43,11 +42,4 @@ export default async function TasksPage() {
       </div>
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

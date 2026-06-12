@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { ReportsView } from "@/components/features/reports/ReportsView";
 
 export default async function ReportsPage() {
-  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -54,11 +53,4 @@ export default async function ReportsPage() {
       />
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

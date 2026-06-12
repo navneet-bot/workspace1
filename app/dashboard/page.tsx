@@ -59,7 +59,6 @@ function assigneeLabel(user: { id?: number; name?: string | null; username?: str
 }
 
 export default async function DashboardPage() {
-  try {
   const session = await getServerSession(authOptions);
   const userEmail = session?.user?.email;
   const userRole = (session?.user as { role?: string })?.role || "intern";
@@ -656,11 +655,4 @@ export default async function DashboardPage() {
       </div>
     </>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

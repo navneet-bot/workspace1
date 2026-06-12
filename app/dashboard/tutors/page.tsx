@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { TutorsTable } from "@/components/features/tutors/TutorsTable";
 
 export default async function TutorsPage() {
-  try {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user) {
@@ -36,11 +35,4 @@ export default async function TutorsPage() {
       <TutorsTable initialTutors={serializedTutors as any} />
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

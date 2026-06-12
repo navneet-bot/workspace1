@@ -1,4 +1,9 @@
+import { Pool, neonConfig } from '@neondatabase/serverless'
+import { PrismaNeon } from '@prisma/adapter-neon'
 import { PrismaClient } from '@prisma/client'
+import ws from 'ws'
+
+neonConfig.webSocketConstructor = ws
 
 console.log("Database URL exists:", !!process.env.DATABASE_URL);
 console.log("Direct URL exists:", !!process.env.DIRECT_URL);
@@ -11,17 +16,11 @@ if (!process.env.NEXTAUTH_SECRET) {
   throw new Error("NEXTAUTH_SECRET is missing");
 }
 
-// Global PrismaClient definition to prevent hot reloading issues in development
-const prismaClientSingleton = () => {
-  return new PrismaClient();
-};
+const connectionString = process.env.DATABASE_URL
 
-declare global {
-  var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>;
-}
+const poolConfig = { connectionString }
+const adapter = new PrismaNeon(poolConfig)
+const prisma = new PrismaClient({ adapter })
 
-const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
-
+// Touched to reload the Prisma Client with updated schema
 export default prisma;
-
-if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma;

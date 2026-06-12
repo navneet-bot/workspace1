@@ -9,7 +9,6 @@ export default async function ChatPage({
 }: {
   searchParams: Promise<{ select?: string }> | { select?: string };
 }) {
-  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -109,11 +108,4 @@ export default async function ChatPage({
       />
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }

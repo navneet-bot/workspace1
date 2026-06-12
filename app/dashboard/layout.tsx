@@ -6,14 +6,11 @@ import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { MobileOverlay } from "@/components/layout/MobileOverlay";
 import { PageBody } from "@/components/layout/PageBody";
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  try {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
@@ -51,11 +48,4 @@ export default async function DashboardLayout({
       </div>
     </div>
   );
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    console.error("SERVER COMPONENT ERROR:", error);
-    throw error;
-  }
 }
