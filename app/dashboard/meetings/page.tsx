@@ -6,6 +6,7 @@ import { MeetingsList } from "@/components/features/meetings/MeetingsList";
 import { deleteExpiredMeetings } from "@/app/actions/meetings";
 
 export default async function MeetingsPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -57,4 +58,8 @@ export default async function MeetingsPage() {
       />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

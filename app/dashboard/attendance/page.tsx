@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AttendanceView } from "@/components/features/attendance/AttendanceView";
 
 export default async function AttendancePage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user) {
@@ -35,4 +36,8 @@ export default async function AttendancePage() {
       />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

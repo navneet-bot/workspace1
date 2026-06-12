@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { MyTasksKanban } from "@/components/features/tasks/MyTasksKanban";
 
 export default async function MyTasksPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -26,4 +27,8 @@ export default async function MyTasksPage() {
       <MyTasksKanban initialTasks={tasks} currentUser={currentUser} />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

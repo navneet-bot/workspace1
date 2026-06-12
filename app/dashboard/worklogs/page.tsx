@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { WorkLogsView } from "@/components/features/worklogs/WorkLogsView";
 
 export default async function WorkLogsPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -40,4 +41,8 @@ export default async function WorkLogsPage() {
       <WorkLogsView initialLogs={logs as any} users={users} />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

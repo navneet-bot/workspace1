@@ -20,6 +20,7 @@ type CalendarEvent = {
 };
 
 export default async function CalendarPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -158,4 +159,8 @@ export default async function CalendarPage() {
       <CalendarView events={events} />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

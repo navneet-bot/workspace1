@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { CandidatesTable } from "@/components/features/candidates/CandidatesTable";
 
 export default async function CandidatesPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user || (session.user as any).role === "intern") {
@@ -20,4 +21,8 @@ export default async function CandidatesPage() {
       <CandidatesTable initialCandidates={candidates} />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

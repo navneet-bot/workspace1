@@ -11,6 +11,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  try {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
@@ -48,4 +49,8 @@ export default async function DashboardLayout({
       </div>
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

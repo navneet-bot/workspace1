@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ProjectsGrid } from "@/components/features/projects/ProjectsGrid";
 
 export default async function ProjectsPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user) {
@@ -48,4 +49,8 @@ export default async function ProjectsPage() {
       />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

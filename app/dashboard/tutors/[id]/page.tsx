@@ -5,6 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import { TutorProfileView } from "@/components/features/tutors/TutorProfileView";
 
 export default async function TutorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user) {
@@ -45,4 +46,8 @@ export default async function TutorDetailPage({ params }: { params: Promise<{ id
       <TutorProfileView tutor={serializedTutor as any} />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }

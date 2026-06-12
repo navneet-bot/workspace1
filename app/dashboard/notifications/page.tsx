@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { NotificationsList } from "@/components/features/notifications/NotificationsList";
 
 export default async function NotificationsPage() {
+  try {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
@@ -73,4 +74,8 @@ export default async function NotificationsPage() {
       />
     </div>
   );
+  } catch (error) {
+    console.error("SERVER COMPONENT ERROR:", error);
+    throw error;
+  }
 }
