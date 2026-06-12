@@ -64,7 +64,10 @@ export default async function ProductivityPage() {
       <ProductivityView stats={stats} breakStats={breakStats} />
     </div>
   );
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
     console.error("SERVER COMPONENT ERROR:", error);
     throw error;
   }

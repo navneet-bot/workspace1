@@ -46,7 +46,10 @@ export default async function TutorDetailPage({ params }: { params: Promise<{ id
       <TutorProfileView tutor={serializedTutor as any} />
     </div>
   );
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
     console.error("SERVER COMPONENT ERROR:", error);
     throw error;
   }

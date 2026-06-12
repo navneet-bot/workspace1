@@ -27,7 +27,10 @@ export default async function MyTasksPage() {
       <MyTasksKanban initialTasks={tasks} currentUser={currentUser} />
     </div>
   );
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.message?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
     console.error("SERVER COMPONENT ERROR:", error);
     throw error;
   }
